@@ -509,13 +509,14 @@ def parse_script(script_text: str, language: str,
                     validated.append(ref)
                     continue
 
-            # Try to match name in any schema
+            # Try to match name in any schema (case-insensitive)
+            ref_name_upper = ref.name.upper()
             for obj_id in known_objects:
-                if obj_id.endswith(f".{ref.name}"):
+                if obj_id.endswith(f".{ref_name_upper}"):
                     matched_schema = obj_id.split('.')[0]
                     validated.append(TableReference(
                         schema=matched_schema,
-                        name=ref.name,
+                        name=ref_name_upper,
                         reference_type=ref.reference_type,
                         alias=ref.alias
                     ))
