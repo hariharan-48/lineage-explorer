@@ -617,12 +617,17 @@ class ExasolLineageExtractor:
                 if table_id not in self.objects:
                     # Try to find by name only (uppercase)
                     ref_name_upper = ref.name.upper()
+                    found = False
                     for obj_id in self.objects:
                         if obj_id.endswith(f".{ref_name_upper}"):
                             table_id = obj_id
+                            found = True
                             break
-                    else:
-                        continue  # Skip unknown objects
+
+                    # For DDL (CREATE TABLE), the table might not exist yet - that's OK
+                    # For reads (SELECT/JOIN), skip unknown objects
+                    if not found and ref.reference_type != 'DDL':
+                        continue  # Skip unknown objects for reads
 
                 # Map reference type to dependency type
                 if ref.reference_type in ('INSERT', 'UPDATE', 'DELETE', 'MERGE', 'DDL'):
@@ -675,6 +680,9 @@ class ExasolLineageExtractor:
                                 found_refs.add((obj_id, ref_type))
                                 break
                     elif table_ref in self.objects:
+                        found_refs.add((table_ref, ref_type))
+                    elif ref_type == 'DDL':
+                        # For DDL (CREATE TABLE), include even if not in objects yet
                         found_refs.add((table_ref, ref_type))
             except Exception:
                 continue
