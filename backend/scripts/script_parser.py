@@ -268,20 +268,22 @@ class LuaScriptParser:
             if not text:
                 return False
             text_upper = text.upper()
-            return any(kw in text_upper for kw in ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'MERGE', 'TRUNCATE'])
+            return any(kw in text_upper for kw in ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'MERGE', 'TRUNCATE', 'CREATE'])
 
         def walk(node):
             """Recursively walk the AST tree."""
             if node is None:
                 return
 
-            # Look for function calls named 'query'
+            # Look for function calls named 'query' or 'pquery' (prepared query)
             if isinstance(node, astnodes.Call):
                 func = node.func
-                if isinstance(func, astnodes.Name) and func.id == 'query':
-                    # Extract string argument
+                if isinstance(func, astnodes.Name) and func.id in ('query', 'pquery'):
+                    # Extract string argument (first arg is the SQL string)
                     if hasattr(node, 'args') and node.args:
-                        for arg in node.args:
+                        # For pquery, the first argument is the SQL template
+                        arg = node.args[0] if node.args else None
+                        if arg:
                             sql = get_string_value(arg)
                             if sql and looks_like_sql(sql):
                                 sql_strings.append(sql)
@@ -314,11 +316,15 @@ class LuaScriptParser:
         # Multi-line strings [[...]]
         for match in re.finditer(r'\[\[(.*?)\]\]', lua_code, re.DOTALL):
             content = match.group(1)
-            if any(kw in content.upper() for kw in ['SELECT', 'INSERT', 'UPDATE', 'DELETE']):
+            if any(kw in content.upper() for kw in ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'MERGE', 'TRUNCATE']):
                 sql_strings.append(content)
 
-        # query() calls
-        for match in re.finditer(r'query\s*\(\s*["\'](.+?)["\']', lua_code, re.IGNORECASE | re.DOTALL):
+        # query() and pquery() calls
+        for match in re.finditer(r'p?query\s*\(\s*["\'](.+?)["\']', lua_code, re.IGNORECASE | re.DOTALL):
+            sql_strings.append(match.group(1))
+
+        # pquery with [[ ]] multiline strings
+        for match in re.finditer(r'p?query\s*\(\s*\[\[(.+?)\]\]', lua_code, re.DOTALL):
             sql_strings.append(match.group(1))
 
         # Regular strings with SQL
