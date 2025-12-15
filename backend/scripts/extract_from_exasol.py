@@ -188,14 +188,14 @@ class ExasolLineageExtractor:
         """Extract virtual schema objects."""
         print("Extracting virtual schemas...")
 
+        # Compatible with Exasol 7.1+ (different column names, no CREATED)
         query = """
         SELECT
             SCHEMA_NAME,
             SCHEMA_OWNER,
-            ADAPTER_SCRIPT_SCHEMA,
-            ADAPTER_SCRIPT_NAME,
+            ADAPTER_SCRIPT,
             ADAPTER_NOTES,
-            CREATED
+            SCHEMA_OBJECT_ID
         FROM EXA_ALL_VIRTUAL_SCHEMAS
         """
 
@@ -214,10 +214,10 @@ class ExasolLineageExtractor:
                     "name": "VIRTUAL_SCHEMA",
                     "type": "VIRTUAL_SCHEMA",
                     "owner": row[1] or "UNKNOWN",
-                    "object_id": self._next_id(),
-                    "created_at": row[5].isoformat() if row[5] else datetime.now().isoformat(),
-                    "description": row[4] or f"Virtual schema {schema_name}",
-                    "adapter_name": f"{row[2]}.{row[3]}" if row[2] and row[3] else None,
+                    "object_id": row[4] if row[4] else self._next_id(),
+                    "created_at": datetime.now().isoformat(),  # Not available in 7.1
+                    "description": row[3] or f"Virtual schema {schema_name}",
+                    "adapter_name": row[2],  # Full adapter script path
                 }
 
             print(f"  Found {len([o for o in self.objects.values() if o['type'] == 'VIRTUAL_SCHEMA'])} virtual schemas")
@@ -228,7 +228,8 @@ class ExasolLineageExtractor:
         """Extract table objects with columns."""
         print("Extracting tables...")
 
-        # Get tables
+        # Get tables - compatible with Exasol 7.1+
+        # Note: RAW_OBJECT_SIZE and CREATED columns not available in 7.1
         table_query = """
         SELECT
             TABLE_SCHEMA,
@@ -236,8 +237,7 @@ class ExasolLineageExtractor:
             TABLE_OWNER,
             TABLE_COMMENT,
             TABLE_ROW_COUNT,
-            RAW_OBJECT_SIZE,
-            CREATED
+            TABLE_OBJECT_ID
         FROM EXA_ALL_TABLES
         ORDER BY TABLE_SCHEMA, TABLE_NAME
         """
@@ -296,12 +296,12 @@ class ExasolLineageExtractor:
                     "name": table_name,
                     "type": "TABLE",
                     "owner": row[2] or "UNKNOWN",
-                    "object_id": self._next_id(),
-                    "created_at": row[6].isoformat() if row[6] else datetime.now().isoformat(),
+                    "object_id": row[5] if row[5] else self._next_id(),
+                    "created_at": datetime.now().isoformat(),  # Not available in 7.1
                     "description": row[3],
                     "columns": columns_map.get(table_id, []),
                     "row_count": row[4],
-                    "size_bytes": row[5],
+                    "size_bytes": None,  # Not available in 7.1
                 }
 
         print(f"  Found {len([o for o in self.objects.values() if o['type'] == 'TABLE'])} tables")
@@ -310,6 +310,7 @@ class ExasolLineageExtractor:
         """Extract view objects with columns and definitions."""
         print("Extracting views...")
 
+        # Compatible with Exasol 7.1+ (no CREATED column)
         view_query = """
         SELECT
             VIEW_SCHEMA,
@@ -317,7 +318,7 @@ class ExasolLineageExtractor:
             VIEW_OWNER,
             VIEW_TEXT,
             VIEW_COMMENT,
-            CREATED
+            VIEW_OBJECT_ID
         FROM EXA_ALL_VIEWS
         ORDER BY VIEW_SCHEMA, VIEW_NAME
         """
@@ -377,8 +378,8 @@ class ExasolLineageExtractor:
                     "name": view_name,
                     "type": "VIEW",
                     "owner": row[2] or "UNKNOWN",
-                    "object_id": self._next_id(),
-                    "created_at": row[5].isoformat() if row[5] else datetime.now().isoformat(),
+                    "object_id": row[5] if row[5] else self._next_id(),
+                    "created_at": datetime.now().isoformat(),  # Not available in 7.1
                     "description": row[4],
                     "definition": row[3],
                     "columns": columns_map.get(view_id, []),
@@ -390,6 +391,7 @@ class ExasolLineageExtractor:
         """Extract Lua UDF scripts."""
         print("Extracting Lua scripts...")
 
+        # Compatible with Exasol 7.1+ (no CREATED column)
         script_query = """
         SELECT
             SCRIPT_SCHEMA,
@@ -401,7 +403,7 @@ class ExasolLineageExtractor:
             SCRIPT_TEXT,
             SCRIPT_COMMENT,
             SCRIPT_LANGUAGE,
-            CREATED
+            SCRIPT_OBJECT_ID
         FROM EXA_ALL_SCRIPTS
         WHERE SCRIPT_LANGUAGE = 'LUA' OR SCRIPT_LANGUAGE = 'PYTHON'
         ORDER BY SCRIPT_SCHEMA, SCRIPT_NAME
@@ -426,8 +428,8 @@ class ExasolLineageExtractor:
                 "name": script_name,
                 "type": "LUA_UDF",
                 "owner": row[2] or "UNKNOWN",
-                "object_id": self._next_id(),
-                "created_at": row[9].isoformat() if row[9] else datetime.now().isoformat(),
+                "object_id": row[9] if row[9] else self._next_id(),
+                "created_at": datetime.now().isoformat(),  # Not available in 7.1
                 "description": row[7],
                 "udf_type": script_type,
                 "script_language": language,
