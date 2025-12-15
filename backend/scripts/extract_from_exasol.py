@@ -614,6 +614,13 @@ class ExasolLineageExtractor:
                 if 'network_connection' in ref.name.lower():
                     print(f"  DEBUG: Found {ref.reference_type} ref to {ref.full_id()} in {script_id}")
 
+            # Debug: if this is the script we're looking for, print all refs
+            if 'network_connection' in script_text.lower():
+                print(f"  DEBUG: Script {script_id} contains 'network_connection' in text")
+                print(f"  DEBUG: Total refs found: {len(refs)}")
+                for ref in refs[:10]:  # Show first 10
+                    print(f"    - {ref.full_id()} ({ref.reference_type})")
+
             for ref in refs:
                 # Ensure uppercase for matching against objects (Exasol uses uppercase)
                 table_id = ref.full_id().upper()
