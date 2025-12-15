@@ -513,9 +513,9 @@ def parse_script(script_text: str, language: str,
     if known_objects:
         validated: List[TableReference] = []
         for ref in refs:
-            # Try exact match
+            # Try exact match (uppercase for Exasol)
             if ref.schema:
-                full_id = f"{ref.schema}.{ref.name}"
+                full_id = f"{ref.schema.upper()}.{ref.name.upper()}"
                 if full_id in known_objects:
                     validated.append(ref)
                     continue
