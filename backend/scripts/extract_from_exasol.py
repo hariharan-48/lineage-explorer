@@ -623,8 +623,9 @@ class ExasolLineageExtractor:
                         continue  # Skip unknown objects
 
                 # Map reference type to dependency type
-                if ref.reference_type in ('INSERT', 'UPDATE', 'DELETE', 'MERGE'):
+                if ref.reference_type in ('INSERT', 'UPDATE', 'DELETE', 'MERGE', 'DDL'):
                     # Script writes to this table (target is the table)
+                    # DDL includes CREATE TABLE AS SELECT - the created table is the output
                     self.table_deps.append({
                         "source_id": script_id,
                         "target_id": table_id,
@@ -633,6 +634,7 @@ class ExasolLineageExtractor:
                     })
                 else:
                     # Script reads from this table (source is the table)
+                    # SELECT, JOIN, etc. are inputs
                     self.table_deps.append({
                         "source_id": table_id,
                         "target_id": script_id,
@@ -655,6 +657,7 @@ class ExasolLineageExtractor:
             (r'\bMERGE\s+INTO\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)', 'MERGE'),
             (r'\bTRUNCATE\s+TABLE\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)', 'TRUNCATE'),
             (r'\bDELETE\s+FROM\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)', 'DELETE'),
+            (r'\bCREATE\s+(?:OR\s+REPLACE\s+)?TABLE\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)', 'DDL'),
         ]
 
         found_refs: Set[tuple] = set()
@@ -675,7 +678,7 @@ class ExasolLineageExtractor:
                 continue
 
         for table_id, ref_type in found_refs:
-            if ref_type in ('INSERT', 'UPDATE', 'DELETE', 'MERGE', 'TRUNCATE'):
+            if ref_type in ('INSERT', 'UPDATE', 'DELETE', 'MERGE', 'TRUNCATE', 'DDL'):
                 self.table_deps.append({
                     "source_id": script_id,
                     "target_id": table_id,
