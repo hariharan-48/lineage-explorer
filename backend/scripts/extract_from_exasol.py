@@ -618,8 +618,15 @@ class ExasolLineageExtractor:
             if 'network_connection' in script_text.lower():
                 print(f"  DEBUG: Script {script_id} contains 'network_connection' in text")
                 print(f"  DEBUG: Total refs found: {len(refs)}")
-                for ref in refs[:10]:  # Show first 10
-                    print(f"    - {ref.full_id()} ({ref.reference_type})")
+                # Show ALL refs containing network_connection
+                for ref in refs:
+                    if 'network_connection' in ref.name.lower():
+                        print(f"    - {ref.full_id()} ({ref.reference_type})")
+                # Show all DDL refs
+                ddl_refs = [r for r in refs if r.reference_type == 'DDL']
+                print(f"  DEBUG: DDL refs count: {len(ddl_refs)}")
+                for ref in ddl_refs:
+                    print(f"    DDL: {ref.full_id()}")
 
             for ref in refs:
                 # Ensure uppercase for matching against objects (Exasol uses uppercase)
