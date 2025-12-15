@@ -519,9 +519,20 @@ def parse_script(script_text: str, language: str,
                 if full_id in known_objects:
                     validated.append(ref)
                     continue
+                # For DDL (CREATE TABLE), include even if not in known_objects
+                # The table being created might not exist yet
+                if ref.reference_type == 'DDL':
+                    validated.append(TableReference(
+                        schema=ref.schema.upper(),
+                        name=ref.name.upper(),
+                        reference_type=ref.reference_type,
+                        alias=ref.alias
+                    ))
+                    continue
 
             # Try to match name in any schema (case-insensitive)
             ref_name_upper = ref.name.upper()
+            found = False
             for obj_id in known_objects:
                 if obj_id.endswith(f".{ref_name_upper}"):
                     matched_schema = obj_id.split('.')[0]
@@ -531,7 +542,17 @@ def parse_script(script_text: str, language: str,
                         reference_type=ref.reference_type,
                         alias=ref.alias
                     ))
+                    found = True
                     break
+
+            # For DDL without schema, still include it
+            if not found and ref.reference_type == 'DDL':
+                validated.append(TableReference(
+                    schema=ref.schema.upper() if ref.schema else None,
+                    name=ref_name_upper,
+                    reference_type=ref.reference_type,
+                    alias=ref.alias
+                ))
         return validated
 
     return refs
