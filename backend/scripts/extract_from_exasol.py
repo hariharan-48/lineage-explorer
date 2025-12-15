@@ -126,8 +126,8 @@ class ExasolLineageExtractor:
             # Extract dependencies from system table
             self._extract_dependencies()
 
-            # Extract column-level lineage if enabled
-            if extraction_config.get("extract_column_lineage", True):
+            # Extract column-level lineage if enabled (disabled by default - slow and not used in UI)
+            if extraction_config.get("extract_column_lineage", False):
                 self._extract_column_lineage()
 
             return self._build_cache()
@@ -751,7 +751,7 @@ class ExasolLineageExtractor:
         """Extract dependencies from EXA_DBA_DEPENDENCIES system table."""
         print("Extracting dependencies...")
 
-        # Exasol's dependency table shows what objects reference what
+        # Exasol 7.1 compatible - uses REFERENCE_TYPE not DEPENDENCY_TYPE
         dep_query = """
         SELECT
             REFERENCED_OBJECT_SCHEMA,
@@ -760,7 +760,7 @@ class ExasolLineageExtractor:
             OBJECT_SCHEMA,
             OBJECT_NAME,
             OBJECT_TYPE,
-            DEPENDENCY_TYPE
+            REFERENCE_TYPE
         FROM EXA_DBA_DEPENDENCIES
         """
 
@@ -773,7 +773,7 @@ class ExasolLineageExtractor:
                 obj_schema = row[3]
                 obj_name = row[4]
                 obj_type = row[5]
-                dep_type = row[6]
+                ref_type_value = row[6]  # REFERENCE_TYPE from Exasol
 
                 # Build object IDs
                 source_id = f"{ref_schema}.{ref_name}"
@@ -781,16 +781,16 @@ class ExasolLineageExtractor:
 
                 # Only add if both objects exist in our extracted data
                 if source_id in self.objects and target_id in self.objects:
-                    # Determine dependency type
+                    # Determine dependency type based on object type
                     if obj_type == "VIEW":
                         dependency_type = "VIEW"
-                        reference_type = "SELECT"
                     elif "SCRIPT" in obj_type:
                         dependency_type = "UDF_INPUT"
-                        reference_type = "PARAMETER"
                     else:
                         dependency_type = "ETL"
-                        reference_type = "REFERENCE"
+
+                    # Use REFERENCE_TYPE from Exasol or derive from object type
+                    reference_type = ref_type_value if ref_type_value else "SELECT"
 
                     self.table_deps.append({
                         "source_id": source_id,

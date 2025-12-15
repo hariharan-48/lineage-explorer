@@ -35,8 +35,9 @@ extraction:
     virtual_schemas: true
     connections: true
 
-  # Column-level lineage extraction (more expensive)
-  extract_column_lineage: true
+  # Column-level lineage extraction (disabled by default - slow and not used in UI)
+  # Enable only if you need column-level dependencies
+  extract_column_lineage: false
 
   # Maximum objects to extract (0 = unlimited)
   max_objects: 0
