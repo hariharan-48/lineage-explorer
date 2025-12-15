@@ -610,13 +610,15 @@ class ExasolLineageExtractor:
             refs = parse_script(script_text, language, known_objects)
 
             for ref in refs:
-                table_id = ref.full_id()
+                # Ensure uppercase for matching against objects (Exasol uses uppercase)
+                table_id = ref.full_id().upper()
 
                 # Validate the reference exists in our objects
                 if table_id not in self.objects:
-                    # Try to find by name only
+                    # Try to find by name only (uppercase)
+                    ref_name_upper = ref.name.upper()
                     for obj_id in self.objects:
-                        if obj_id.endswith(f".{ref.name}"):
+                        if obj_id.endswith(f".{ref_name_upper}"):
                             table_id = obj_id
                             break
                     else:
