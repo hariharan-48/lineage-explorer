@@ -16,6 +16,9 @@ automatic_scaling:
 # Environment variables
 env_variables:
   PYTHONUNBUFFERED: "1"
+  # Uncomment and set your GCS bucket name to load cache from Cloud Storage
+  # GCS_BUCKET: "your-bucket-name"
+  # GCS_CACHE_FILE: "lineage_cache.json"
 
 # Handlers - let FastAPI handle all routes
 handlers:

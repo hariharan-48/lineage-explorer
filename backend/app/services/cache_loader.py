@@ -1,8 +1,10 @@
 """
 JSON cache loader with validation and singleton pattern.
+Supports loading from local file or Google Cloud Storage.
 """
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Optional
 from datetime import datetime
@@ -11,6 +13,35 @@ from app.services.graph_engine import LineageGraphEngine
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def load_from_gcs(bucket_name: str, blob_name: str) -> dict:
+    """
+    Load JSON cache from Google Cloud Storage.
+
+    Args:
+        bucket_name: GCS bucket name
+        blob_name: Path to file in bucket (e.g., 'lineage_cache.json')
+
+    Returns:
+        Parsed JSON data
+    """
+    try:
+        from google.cloud import storage
+    except ImportError:
+        raise ImportError(
+            "google-cloud-storage is required for GCS support. "
+            "Install it with: pip install google-cloud-storage"
+        )
+
+    logger.info(f"Loading cache from GCS: gs://{bucket_name}/{blob_name}")
+
+    client = storage.Client()
+    bucket = client.bucket(bucket_name)
+    blob = bucket.blob(blob_name)
+
+    content = blob.download_as_text()
+    return json.loads(content)
 
 
 class CacheLoader:
@@ -32,20 +63,33 @@ class CacheLoader:
         """
         Load the cache file and initialize the graph engine.
         Returns cached engine if already loaded.
+
+        Supports loading from:
+        1. GCS bucket (if GCS_BUCKET env var is set)
+        2. Local file path
         """
         if self._engine is not None:
             return self._engine
 
-        if cache_path is None:
-            cache_path = Path(settings.CACHE_FILE_PATH)
+        # Check for GCS configuration
+        gcs_bucket = os.environ.get("GCS_BUCKET")
+        gcs_blob = os.environ.get("GCS_CACHE_FILE", "lineage_cache.json")
 
-        logger.info(f"Loading lineage cache from {cache_path}")
+        if gcs_bucket:
+            # Load from Google Cloud Storage
+            cache_data = load_from_gcs(gcs_bucket, gcs_blob)
+        else:
+            # Load from local file
+            if cache_path is None:
+                cache_path = Path(settings.CACHE_FILE_PATH)
 
-        if not cache_path.exists():
-            raise FileNotFoundError(f"Cache file not found: {cache_path}")
+            logger.info(f"Loading lineage cache from {cache_path}")
 
-        with open(cache_path, "r") as f:
-            cache_data = json.load(f)
+            if not cache_path.exists():
+                raise FileNotFoundError(f"Cache file not found: {cache_path}")
+
+            with open(cache_path, "r") as f:
+                cache_data = json.load(f)
 
         # Validate cache structure
         self._validate_cache(cache_data)

@@ -13,3 +13,6 @@ pyyaml>=6.0
 # Script parsing (for extracting lineage from Lua/Python scripts)
 sqlglot>=20.0.0
 luaparser>=3.2.0
+
+# Cloud Storage (for loading cache from GCS in production)
+google-cloud-storage>=2.10.0
