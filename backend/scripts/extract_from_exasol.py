@@ -609,6 +609,11 @@ class ExasolLineageExtractor:
             known_objects = set(self.objects.keys())
             refs = parse_script(script_text, language, known_objects)
 
+            # Debug: print DDL references for dm_network_connection
+            for ref in refs:
+                if 'network_connection' in ref.name.lower():
+                    print(f"  DEBUG: Found {ref.reference_type} ref to {ref.full_id()} in {script_id}")
+
             for ref in refs:
                 # Ensure uppercase for matching against objects (Exasol uses uppercase)
                 table_id = ref.full_id().upper()
@@ -633,6 +638,8 @@ class ExasolLineageExtractor:
                 if ref.reference_type in ('INSERT', 'UPDATE', 'DELETE', 'MERGE', 'DDL'):
                     # Script writes to this table (target is the table)
                     # DDL includes CREATE TABLE AS SELECT - the created table is the output
+                    if 'network_connection' in table_id.lower():
+                        print(f"  DEBUG: Adding UDF_OUTPUT dep: {script_id} -> {table_id}")
                     self.table_deps.append({
                         "source_id": script_id,
                         "target_id": table_id,
