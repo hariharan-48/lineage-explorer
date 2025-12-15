@@ -275,13 +275,24 @@ class LuaScriptParser:
             if node is None:
                 return
 
-            # Look for function calls named 'query' or 'pquery' (prepared query)
+            # Look for function calls that execute SQL:
+            # - query() / pquery() - standard Lua scripting functions
+            # - exa.query_no_preprocessing() / exa.pquery_no_preprocessing() - adapter scripts
             if isinstance(node, astnodes.Call):
                 func = node.func
-                if isinstance(func, astnodes.Name) and func.id in ('query', 'pquery'):
+                func_name = None
+
+                # Direct function call: query(), pquery()
+                if isinstance(func, astnodes.Name):
+                    func_name = func.id
+                # Method call: exa.query_no_preprocessing(), exa.pquery_no_preprocessing()
+                elif isinstance(func, astnodes.Index):
+                    if hasattr(func, 'idx') and isinstance(func.idx, astnodes.Name):
+                        func_name = func.idx.id
+
+                if func_name in ('query', 'pquery', 'query_no_preprocessing', 'pquery_no_preprocessing'):
                     # Extract string argument (first arg is the SQL string)
                     if hasattr(node, 'args') and node.args:
-                        # For pquery, the first argument is the SQL template
                         arg = node.args[0] if node.args else None
                         if arg:
                             sql = get_string_value(arg)
@@ -319,12 +330,16 @@ class LuaScriptParser:
             if any(kw in content.upper() for kw in ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'MERGE', 'TRUNCATE']):
                 sql_strings.append(content)
 
-        # query() and pquery() calls
-        for match in re.finditer(r'p?query\s*\(\s*["\'](.+?)["\']', lua_code, re.IGNORECASE | re.DOTALL):
+        # query(), pquery(), query_no_preprocessing(), pquery_no_preprocessing() calls
+        # Match: query(...), pquery(...), exa.query_no_preprocessing(...), etc.
+        query_funcs = r'(?:exa\.)?p?query(?:_no_preprocessing)?'
+
+        # With single/double quoted strings
+        for match in re.finditer(query_funcs + r'\s*\(\s*["\'](.+?)["\']', lua_code, re.IGNORECASE | re.DOTALL):
             sql_strings.append(match.group(1))
 
-        # pquery with [[ ]] multiline strings
-        for match in re.finditer(r'p?query\s*\(\s*\[\[(.+?)\]\]', lua_code, re.DOTALL):
+        # With [[ ]] multiline strings
+        for match in re.finditer(query_funcs + r'\s*\(\s*\[\[(.+?)\]\]', lua_code, re.DOTALL):
             sql_strings.append(match.group(1))
 
         # Regular strings with SQL
