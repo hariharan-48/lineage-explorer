@@ -1,0 +1,24 @@
+# App Engine configuration for Lineage Explorer
+runtime: python312
+
+# Entry point
+entrypoint: gunicorn -w 2 -k uvicorn.workers.UvicornWorker app.main:app --bind :$PORT
+
+# Instance configuration
+instance_class: F2
+
+# Auto-scaling settings
+automatic_scaling:
+  min_instances: 0
+  max_instances: 2
+  target_cpu_utilization: 0.65
+
+# Environment variables
+env_variables:
+  PYTHONUNBUFFERED: "1"
+
+# Handlers - let FastAPI handle all routes
+handlers:
+  - url: /.*
+    script: auto
+    secure: always

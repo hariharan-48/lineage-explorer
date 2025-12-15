@@ -1,0 +1,49 @@
+# Ignore files for App Engine deployment
+
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.so
+.env
+.venv
+venv/
+.lineage/
+*.egg-info/
+dist/
+build/
+
+# Node (frontend source - we deploy built static files)
+node_modules/
+npm-debug.log*
+frontend/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local configs
+**/exasol_config.local.yaml
+.env.local
+.env.*.local
+
+# Development files
+.claude/
+*.log
+scripts/
+
+# Tests
+tests/
+*_test.py
+test_*.py
