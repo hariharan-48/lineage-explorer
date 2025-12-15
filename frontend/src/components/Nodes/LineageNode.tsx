@@ -23,7 +23,7 @@ const typeIcons: Record<string, string> = {
 export const LineageNode = memo(({ data, id, selected }: NodeProps) => {
   const nodeData = data as LineageNodeData;
   const { object, hasUpstream, hasDownstream, isExpanded, isRoot } = nodeData;
-  const { expandNode, setSelectedNode, isLoading } = useGraphStore();
+  const { expandNode, collapseNode, setSelectedNode, isLoading } = useGraphStore();
 
   const handleExpandUpstream = useCallback(
     (e: React.MouseEvent) => {
@@ -45,6 +45,22 @@ export const LineageNode = memo(({ data, id, selected }: NodeProps) => {
     [id, expandNode, isLoading]
   );
 
+  const handleCollapseUpstream = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      collapseNode(id, 'backward');
+    },
+    [id, collapseNode]
+  );
+
+  const handleCollapseDownstream = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      collapseNode(id, 'forward');
+    },
+    [id, collapseNode]
+  );
+
   const handleNodeClick = useCallback(() => {
     setSelectedNode(id);
   }, [id, setSelectedNode]);
@@ -52,8 +68,11 @@ export const LineageNode = memo(({ data, id, selected }: NodeProps) => {
   const color = typeColors[object.type] || '#64748b';
   const icon = typeIcons[object.type] || '📄';
 
-  const showUpstreamButton = hasUpstream && !isExpanded.upstream;
-  const showDownstreamButton = hasDownstream && !isExpanded.downstream;
+  // Show + button if has more to expand, show - button if already expanded
+  const showUpstreamExpandButton = hasUpstream && !isExpanded.upstream;
+  const showUpstreamCollapseButton = isExpanded.upstream && !isRoot;
+  const showDownstreamExpandButton = hasDownstream && !isExpanded.downstream;
+  const showDownstreamCollapseButton = isExpanded.downstream && !isRoot;
 
   return (
     <div
@@ -61,8 +80,8 @@ export const LineageNode = memo(({ data, id, selected }: NodeProps) => {
       onClick={handleNodeClick}
       style={{ '--node-color': color } as React.CSSProperties}
     >
-      {/* Upstream expand button */}
-      {showUpstreamButton && (
+      {/* Upstream expand button (+) */}
+      {showUpstreamExpandButton && (
         <button
           className="expand-btn upstream"
           onClick={handleExpandUpstream}
@@ -70,6 +89,17 @@ export const LineageNode = memo(({ data, id, selected }: NodeProps) => {
           disabled={isLoading}
         >
           +
+        </button>
+      )}
+
+      {/* Upstream collapse button (-) */}
+      {showUpstreamCollapseButton && (
+        <button
+          className="collapse-btn upstream"
+          onClick={handleCollapseUpstream}
+          title="Hide upstream dependencies"
+        >
+          −
         </button>
       )}
 
@@ -101,8 +131,8 @@ export const LineageNode = memo(({ data, id, selected }: NodeProps) => {
         className="handle"
       />
 
-      {/* Downstream expand button */}
-      {showDownstreamButton && (
+      {/* Downstream expand button (+) */}
+      {showDownstreamExpandButton && (
         <button
           className="expand-btn downstream"
           onClick={handleExpandDownstream}
@@ -113,16 +143,15 @@ export const LineageNode = memo(({ data, id, selected }: NodeProps) => {
         </button>
       )}
 
-      {/* Expansion indicators */}
-      {isExpanded.upstream && (
-        <div className="expanded-indicator upstream" title="Upstream expanded">
-          ◂
-        </div>
-      )}
-      {isExpanded.downstream && (
-        <div className="expanded-indicator downstream" title="Downstream expanded">
-          ▸
-        </div>
+      {/* Downstream collapse button (-) */}
+      {showDownstreamCollapseButton && (
+        <button
+          className="collapse-btn downstream"
+          onClick={handleCollapseDownstream}
+          title="Hide downstream dependencies"
+        >
+          −
+        </button>
       )}
     </div>
   );

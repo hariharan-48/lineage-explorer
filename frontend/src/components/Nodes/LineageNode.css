@@ -134,19 +134,49 @@
   transform: translateY(-50%) scale(1.15);
 }
 
-/* Expanded indicators */
-.lineage-node .expanded-indicator {
+/* Collapse buttons */
+.lineage-node .collapse-btn {
   position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: white;
+  border: 2px solid white;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  line-height: 1;
+}
+
+.lineage-node .collapse-btn:hover {
+  transform: scale(1.15);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+  background: #dc2626;
+}
+
+.lineage-node .collapse-btn.upstream {
+  left: -12px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 10px;
-  color: #94a3b8;
 }
 
-.lineage-node .expanded-indicator.upstream {
-  left: -20px;
+.lineage-node .collapse-btn.upstream:hover {
+  transform: translateY(-50%) scale(1.15);
 }
 
-.lineage-node .expanded-indicator.downstream {
-  right: -20px;
+.lineage-node .collapse-btn.downstream {
+  right: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.lineage-node .collapse-btn.downstream:hover {
+  transform: translateY(-50%) scale(1.15);
 }

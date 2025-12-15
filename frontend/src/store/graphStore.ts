@@ -36,6 +36,7 @@ interface GraphState {
   // Actions
   loadLineage: (objectId: string) => Promise<void>;
   expandNode: (nodeId: string, direction: 'forward' | 'backward') => Promise<void>;
+  collapseNode: (nodeId: string, direction: 'forward' | 'backward') => void;
   collapseAll: () => void;
   setSelectedNode: (nodeId: string | null) => void;
   setLayoutDirection: (direction: 'TB' | 'LR') => void;
@@ -197,6 +198,88 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
     }
+  },
+
+  collapseNode: (nodeId: string, direction: 'forward' | 'backward') => {
+    const { nodes, edges, expandedNodes, rootObjectId } = get();
+
+    // Find all nodes that should be removed (descendants in the given direction)
+    const nodesToRemove = new Set<string>();
+    const edgesToRemove = new Set<string>();
+
+    // BFS to find all descendant nodes
+    const queue = [nodeId];
+    const visited = new Set<string>([nodeId]);
+
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+
+      // Find edges from this node in the specified direction
+      edges.forEach((edge) => {
+        let childId: string | null = null;
+
+        if (direction === 'forward' && edge.source === currentId) {
+          childId = edge.target;
+        } else if (direction === 'backward' && edge.target === currentId) {
+          childId = edge.source;
+        }
+
+        if (childId && !visited.has(childId) && childId !== rootObjectId) {
+          visited.add(childId);
+          nodesToRemove.add(childId);
+          edgesToRemove.add(edge.id);
+          queue.push(childId);
+        } else if (childId && currentId !== nodeId) {
+          // Also remove edges from nodes being removed
+          edgesToRemove.add(edge.id);
+        }
+      });
+    }
+
+    // Also remove edges directly connected to nodeId in the collapse direction
+    edges.forEach((edge) => {
+      if (direction === 'forward' && edge.source === nodeId && nodesToRemove.has(edge.target)) {
+        edgesToRemove.add(edge.id);
+      } else if (direction === 'backward' && edge.target === nodeId && nodesToRemove.has(edge.source)) {
+        edgesToRemove.add(edge.id);
+      }
+    });
+
+    // Update expanded state
+    const newExpandedNodes = new Map(expandedNodes);
+    const current = newExpandedNodes.get(nodeId) || { upstream: false, downstream: false };
+    newExpandedNodes.set(nodeId, {
+      ...current,
+      [direction === 'forward' ? 'downstream' : 'upstream']: false,
+    });
+
+    // Remove collapsed nodes from expandedNodes
+    nodesToRemove.forEach((id) => newExpandedNodes.delete(id));
+
+    // Filter nodes and edges
+    const newNodes = nodes
+      .filter((node) => !nodesToRemove.has(node.id))
+      .map((node) => {
+        if (node.id === nodeId) {
+          const nodeData = node.data as LineageNodeData;
+          return {
+            ...node,
+            data: {
+              ...nodeData,
+              isExpanded: newExpandedNodes.get(nodeId) || { upstream: false, downstream: false },
+            },
+          };
+        }
+        return node;
+      });
+
+    const newEdges = edges.filter((edge) => !edgesToRemove.has(edge.id));
+
+    set({
+      nodes: newNodes,
+      edges: newEdges,
+      expandedNodes: newExpandedNodes,
+    });
   },
 
   collapseAll: () => {
