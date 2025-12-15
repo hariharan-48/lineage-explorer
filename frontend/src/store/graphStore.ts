@@ -106,9 +106,12 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   loadLineage: async (objectId: string) => {
     set({ isLoading: true, error: null });
     try {
+      // Use depth=1 for initial load to keep the graph manageable
+      // Scripts especially can have massive fan-out (reading/writing many tables)
+      // Users can expand further using +/- buttons
       const response = await api.getFullLineage(objectId, {
-        upstreamDepth: 2,
-        downstreamDepth: 2,
+        upstreamDepth: 1,
+        downstreamDepth: 1,
       });
 
       const initialExpanded = new Map<string, { upstream: boolean; downstream: boolean }>();
