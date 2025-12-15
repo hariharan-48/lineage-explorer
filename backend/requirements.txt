@@ -1,0 +1,14 @@
+# API Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+python-multipart==0.0.6
+
+# Extraction tools (for connecting to Exasol)
+pyexasol>=0.25.0
+pyyaml>=6.0
+
+# Script parsing (for extracting lineage from Lua/Python scripts)
+sqlglot>=20.0.0
+luaparser>=3.2.0

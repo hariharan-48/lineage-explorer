@@ -1,0 +1,222 @@
+import { create } from 'zustand';
+import type { Node, Edge } from '@xyflow/react';
+import { api } from '../services/api';
+import type { DatabaseObject, LineageResponse } from '../types/lineage';
+
+export interface LineageNodeData extends Record<string, unknown> {
+  object: DatabaseObject;
+  hasUpstream: boolean;
+  hasDownstream: boolean;
+  isExpanded: {
+    upstream: boolean;
+    downstream: boolean;
+  };
+  isRoot: boolean;
+}
+
+export type LineageNode = Node<LineageNodeData>;
+
+interface GraphState {
+  // Graph data
+  nodes: LineageNode[];
+  edges: Edge[];
+  selectedNodeId: string | null;
+  rootObjectId: string | null;
+
+  // Expansion tracking
+  expandedNodes: Map<string, { upstream: boolean; downstream: boolean }>;
+
+  // View settings
+  layoutDirection: 'TB' | 'LR';
+
+  // Loading states
+  isLoading: boolean;
+  error: string | null;
+
+  // Actions
+  loadLineage: (objectId: string) => Promise<void>;
+  expandNode: (nodeId: string, direction: 'forward' | 'backward') => Promise<void>;
+  collapseAll: () => void;
+  setSelectedNode: (nodeId: string | null) => void;
+  setLayoutDirection: (direction: 'TB' | 'LR') => void;
+  setNodes: (nodes: LineageNode[]) => void;
+  setEdges: (edges: Edge[]) => void;
+  reset: () => void;
+}
+
+const transformToReactFlow = (
+  lineageData: LineageResponse,
+  expandedNodes: Map<string, { upstream: boolean; downstream: boolean }>,
+  rootObjectId: string
+): { nodes: LineageNode[]; edges: Edge[] } => {
+  const nodes: LineageNode[] = Object.values(lineageData.nodes).map((obj) => {
+    const expanded = expandedNodes.get(obj.id) || { upstream: false, downstream: false };
+    return {
+      id: obj.id,
+      type: 'lineageNode',
+      position: { x: 0, y: 0 },
+      data: {
+        object: obj,
+        hasUpstream: lineageData.has_more_upstream[obj.id] || false,
+        hasDownstream: lineageData.has_more_downstream[obj.id] || false,
+        isExpanded: expanded,
+        isRoot: obj.id === rootObjectId,
+      },
+    };
+  });
+
+  const edges: Edge[] = lineageData.edges.map((edge) => ({
+    id: `${edge.source_id}-${edge.target_id}`,
+    source: edge.source_id,
+    target: edge.target_id,
+    type: 'smoothstep',
+    animated: edge.dependency_type === 'ETL',
+    label: edge.dependency_type,
+    style: { stroke: '#64748b', strokeWidth: 2 },
+    labelStyle: { fontSize: 10, fill: '#64748b' },
+    labelBgStyle: { fill: '#f8fafc', fillOpacity: 0.8 },
+  }));
+
+  return { nodes, edges };
+};
+
+export const useGraphStore = create<GraphState>((set, get) => ({
+  nodes: [],
+  edges: [],
+  selectedNodeId: null,
+  rootObjectId: null,
+  expandedNodes: new Map(),
+  layoutDirection: 'LR',
+  isLoading: false,
+  error: null,
+
+  loadLineage: async (objectId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await api.getFullLineage(objectId, {
+        upstreamDepth: 2,
+        downstreamDepth: 2,
+      });
+
+      const initialExpanded = new Map<string, { upstream: boolean; downstream: boolean }>();
+      initialExpanded.set(objectId, { upstream: true, downstream: true });
+
+      const { nodes, edges } = transformToReactFlow(response, initialExpanded, objectId);
+
+      set({
+        nodes,
+        edges,
+        rootObjectId: objectId,
+        expandedNodes: initialExpanded,
+        isLoading: false,
+        selectedNodeId: objectId,
+      });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  expandNode: async (nodeId: string, direction: 'forward' | 'backward') => {
+    const { nodes, edges, expandedNodes, rootObjectId } = get();
+
+    set({ isLoading: true, error: null });
+    try {
+      const response =
+        direction === 'forward'
+          ? await api.getForwardLineage(nodeId, { depth: 1 })
+          : await api.getBackwardLineage(nodeId, { depth: 1 });
+
+      const existingNodeIds = new Set(nodes.map((n) => n.id));
+      const existingEdgeIds = new Set(edges.map((e) => e.id));
+
+      const newExpandedNodes = new Map(expandedNodes);
+      Object.keys(response.nodes).forEach((id) => {
+        if (!newExpandedNodes.has(id)) {
+          newExpandedNodes.set(id, { upstream: false, downstream: false });
+        }
+      });
+
+      const current = newExpandedNodes.get(nodeId) || { upstream: false, downstream: false };
+      newExpandedNodes.set(nodeId, {
+        ...current,
+        [direction === 'forward' ? 'downstream' : 'upstream']: true,
+      });
+
+      const newNodes: LineageNode[] = Object.values(response.nodes)
+        .filter((obj) => !existingNodeIds.has(obj.id))
+        .map((obj) => ({
+          id: obj.id,
+          type: 'lineageNode',
+          position: { x: 0, y: 0 },
+          data: {
+            object: obj,
+            hasUpstream: response.has_more_upstream[obj.id] || false,
+            hasDownstream: response.has_more_downstream[obj.id] || false,
+            isExpanded: newExpandedNodes.get(obj.id) || { upstream: false, downstream: false },
+            isRoot: obj.id === rootObjectId,
+          },
+        }));
+
+      const newEdges = response.edges
+        .filter((e) => !existingEdgeIds.has(`${e.source_id}-${e.target_id}`))
+        .map((edge) => ({
+          id: `${edge.source_id}-${edge.target_id}`,
+          source: edge.source_id,
+          target: edge.target_id,
+          type: 'smoothstep',
+          animated: edge.dependency_type === 'ETL',
+          label: edge.dependency_type,
+          style: { stroke: '#64748b', strokeWidth: 2 },
+          labelStyle: { fontSize: 10, fill: '#64748b' },
+          labelBgStyle: { fill: '#f8fafc', fillOpacity: 0.8 },
+        }));
+
+      const updatedNodes: LineageNode[] = nodes.map((node) => {
+        const newExpanded = newExpandedNodes.get(node.id);
+        const nodeData = node.data as LineageNodeData;
+        if (newExpanded) {
+          return {
+            ...node,
+            data: {
+              ...nodeData,
+              isExpanded: newExpanded,
+              hasUpstream: response.has_more_upstream[node.id] ?? nodeData.hasUpstream,
+              hasDownstream: response.has_more_downstream[node.id] ?? nodeData.hasDownstream,
+            },
+          };
+        }
+        return node;
+      });
+
+      set({
+        nodes: [...updatedNodes, ...newNodes],
+        edges: [...edges, ...newEdges],
+        expandedNodes: newExpandedNodes,
+        isLoading: false,
+      });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  collapseAll: () => {
+    const { rootObjectId } = get();
+    if (rootObjectId) {
+      get().loadLineage(rootObjectId);
+    }
+  },
+
+  setSelectedNode: (nodeId) => set({ selectedNodeId: nodeId }),
+  setLayoutDirection: (direction) => set({ layoutDirection: direction }),
+  setNodes: (nodes) => set({ nodes }),
+  setEdges: (edges) => set({ edges }),
+  reset: () =>
+    set({
+      nodes: [],
+      edges: [],
+      selectedNodeId: null,
+      rootObjectId: null,
+      expandedNodes: new Map(),
+      error: null,
+    }),
+}));

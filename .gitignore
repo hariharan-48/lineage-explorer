@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.so
+.env
+.venv
+venv/
+.lineage/
+*.egg-info/
+dist/
+build/
+
+# Claude Code
+.claude/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local configs (may contain credentials)
+**/exasol_config.local.yaml
+.env.local
+.env.*.local
+
+# Build outputs
+frontend/dist/
+
+# Cache files
+backend/data/lineage_cache.json
+
+# Logs
+*.log

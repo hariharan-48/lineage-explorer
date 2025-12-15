@@ -1,0 +1,104 @@
+# Exasol Lineage Extractor Configuration
+# =======================================
+# Copy this file to exasol_config.local.yaml and fill in your connection details
+# The local file will be ignored by git
+
+# Database Connection Settings
+connection:
+  host: "your-exasol-host.com"
+  port: 8563
+  user: "your_username"
+  password: "your_password"
+  # Optional: Use environment variables instead
+  # password_env: "EXASOL_PASSWORD"
+  schema: ""  # Default schema (optional)
+
+# Extraction Settings
+extraction:
+  # Which schemas to include (empty = all schemas)
+  include_schemas: []
+  # include_schemas:
+  #   - "DWH"
+  #   - "STAGING"
+  #   - "MART"
+
+  # Which schemas to exclude (applied after include filter)
+  exclude_schemas:
+    - "SYS"
+    - "EXA_STATISTICS"
+
+  # Object types to extract
+  object_types:
+    tables: true
+    views: true
+    lua_udfs: true
+    virtual_schemas: true
+    connections: true
+
+  # Column-level lineage extraction (more expensive)
+  extract_column_lineage: true
+
+  # Maximum objects to extract (0 = unlimited)
+  max_objects: 0
+
+  # Include row counts and sizes (requires additional queries)
+  include_statistics: true
+
+# Output Settings
+output:
+  file_path: "../data/lineage_cache.json"
+  pretty_print: true
+
+# Script Parsing Settings (uses AST-based parsers: sqlglot + luaparser)
+script_parsing:
+  # Enable parsing of scripts to find table references
+  enabled: true
+  # SQL dialect for sqlglot parser (postgres works well for Exasol)
+  sql_dialect: "postgres"
+
+# Custom Metadata Tables
+# ======================
+# Many organizations store scripts, SQL transformations, or ETL logic in
+# custom metadata tables. Configure them here to extract lineage from them.
+#
+# Each table configuration supports:
+#   - table: Full table name (SCHEMA.TABLE)
+#   - id_column: Column containing unique ID
+#   - name_column: Column containing script/transform name
+#   - schema_column: Column containing target schema (optional)
+#   - default_schema: Default schema if schema_column not specified
+#   - script_column: Single column containing script text
+#   - script_columns: Multiple columns to combine (SQL split across columns)
+#   - language: LUA, PYTHON, or SQL
+#   - where_clause: Optional filter condition
+#
+metadata_tables: []
+# Example configurations:
+# metadata_tables:
+#   # Lua scripts stored in a custom table
+#   - table: "META.LUA_SCRIPTS"
+#     id_column: "SCRIPT_ID"
+#     name_column: "SCRIPT_NAME"
+#     schema_column: "TARGET_SCHEMA"
+#     script_column: "SCRIPT_TEXT"
+#     language: "LUA"
+#
+#   # SQL transformations with SQL split across multiple columns
+#   - table: "ETL.SQL_TRANSFORMATIONS"
+#     id_column: "TRANSFORM_ID"
+#     name_column: "TRANSFORM_NAME"
+#     default_schema: "ETL"
+#     script_columns:
+#       - "SOURCE_QUERY"
+#       - "TRANSFORM_LOGIC"
+#       - "TARGET_INSERT"
+#     language: "SQL"
+#     where_clause: "IS_ACTIVE = TRUE"
+#
+#   # Python UDFs in a metadata table
+#   - table: "ANALYTICS.PYTHON_UDFS"
+#     id_column: "UDF_ID"
+#     name_column: "UDF_NAME"
+#     schema_column: "SCHEMA_NAME"
+#     script_column: "PYTHON_CODE"
+#     language: "PYTHON"
