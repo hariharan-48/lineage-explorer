@@ -128,6 +128,7 @@ class SQLParser:
     def _get_reference_type(self, table_node) -> str:
         """Determine the type of table reference from AST context."""
         parent = table_node.parent
+        is_inside_create = False
 
         while parent:
             parent_type = type(parent).__name__
@@ -144,15 +145,25 @@ class SQLParser:
                 # Check if it's specifically a JOIN
                 if parent_type == 'Join':
                     return 'JOIN'
-                return 'SELECT'
+                # Don't return SELECT yet - continue to check if inside CREATE
+                pass
             elif parent_type == 'Create':
-                return 'DDL'
+                is_inside_create = True
             elif parent_type == 'Drop':
                 return 'DDL'
 
             parent = parent.parent if hasattr(parent, 'parent') else None
 
-        return 'SELECT'  # Default
+        # If inside a CREATE statement, check if this is the target table or a source table
+        # The first table in CREATE TABLE x AS SELECT is DDL (target)
+        # Tables in the SELECT part are reads (SELECT)
+        if is_inside_create:
+            # Check if this table is directly under Create (the target) or in a subquery (source)
+            parent = table_node.parent
+            if parent and type(parent).__name__ == 'Create':
+                return 'DDL'
+
+        return 'SELECT'  # Default - reading from table
 
     def _fallback_parse(self, sql: str) -> List[TableReference]:
         """Fallback regex-based parsing when sqlglot is not available."""
