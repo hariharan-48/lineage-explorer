@@ -243,6 +243,9 @@ class LuaScriptParser:
 
         # Parse each SQL string
         for sql in sql_strings:
+            # Convert escaped newlines/tabs to actual whitespace
+            # Scripts may contain literal \n or \t that need to be converted
+            sql = sql.replace('\\n', '\n').replace('\\t', '\t').replace('\\r', '\r')
             refs = self.sql_parser.parse(sql)
             references.extend(refs)
 
