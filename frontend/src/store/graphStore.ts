@@ -66,17 +66,29 @@ const transformToReactFlow = (
     };
   });
 
-  const edges: Edge[] = lineageData.edges.map((edge) => ({
-    id: `${edge.source_id}-${edge.target_id}`,
-    source: edge.source_id,
-    target: edge.target_id,
-    type: 'smoothstep',
-    animated: edge.dependency_type === 'ETL',
-    label: edge.dependency_type,
-    style: { stroke: '#64748b', strokeWidth: 2 },
-    labelStyle: { fontSize: 10, fill: '#64748b' },
-    labelBgStyle: { fill: '#f8fafc', fillOpacity: 0.8 },
-  }));
+  // Color mapping for dependency types
+  const dependencyColors: Record<string, string> = {
+    'USES': '#3b82f6',           // Blue - view uses table
+    'IS DEPENDENT ON': '#8b5cf6', // Purple - general dependency
+    'ETL': '#f59e0b',            // Amber - ETL process
+    'REFERENCES': '#10b981',      // Green - foreign key reference
+    'CALLS': '#ec4899',          // Pink - function/script calls
+  };
+
+  const edges: Edge[] = lineageData.edges.map((edge) => {
+    const color = dependencyColors[edge.dependency_type] || '#64748b';
+    return {
+      id: `${edge.source_id}-${edge.target_id}`,
+      source: edge.source_id,
+      target: edge.target_id,
+      type: 'smoothstep',
+      animated: true,
+      label: edge.dependency_type,
+      style: { stroke: color, strokeWidth: 2 },
+      labelStyle: { fontSize: 10, fill: color },
+      labelBgStyle: { fill: '#f8fafc', fillOpacity: 0.8 },
+    };
+  });
 
   return { nodes, edges };
 };
@@ -158,19 +170,31 @@ export const useGraphStore = create<GraphState>((set, get) => ({
           },
         }));
 
+      // Color mapping for dependency types
+      const dependencyColors: Record<string, string> = {
+        'USES': '#3b82f6',           // Blue - view uses table
+        'IS DEPENDENT ON': '#8b5cf6', // Purple - general dependency
+        'ETL': '#f59e0b',            // Amber - ETL process
+        'REFERENCES': '#10b981',      // Green - foreign key reference
+        'CALLS': '#ec4899',          // Pink - function/script calls
+      };
+
       const newEdges = response.edges
         .filter((e) => !existingEdgeIds.has(`${e.source_id}-${e.target_id}`))
-        .map((edge) => ({
-          id: `${edge.source_id}-${edge.target_id}`,
-          source: edge.source_id,
-          target: edge.target_id,
-          type: 'smoothstep',
-          animated: edge.dependency_type === 'ETL',
-          label: edge.dependency_type,
-          style: { stroke: '#64748b', strokeWidth: 2 },
-          labelStyle: { fontSize: 10, fill: '#64748b' },
-          labelBgStyle: { fill: '#f8fafc', fillOpacity: 0.8 },
-        }));
+        .map((edge) => {
+          const color = dependencyColors[edge.dependency_type] || '#64748b';
+          return {
+            id: `${edge.source_id}-${edge.target_id}`,
+            source: edge.source_id,
+            target: edge.target_id,
+            type: 'smoothstep',
+            animated: true,
+            label: edge.dependency_type,
+            style: { stroke: color, strokeWidth: 2 },
+            labelStyle: { fontSize: 10, fill: color },
+            labelBgStyle: { fill: '#f8fafc', fillOpacity: 0.8 },
+          };
+        });
 
       const updatedNodes: LineageNode[] = nodes.map((node) => {
         const newExpanded = newExpandedNodes.get(node.id);

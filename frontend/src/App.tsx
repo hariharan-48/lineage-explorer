@@ -149,6 +149,57 @@ function App() {
               pannable
             />
           </ReactFlow>
+
+          {/* Legend */}
+          <div className="legend">
+            <div className="legend-title">Legend</div>
+            <div className="legend-section">
+              <div className="legend-section-title">Node Types</div>
+              <div className="legend-item">
+                <span className="legend-color" style={{ background: '#22c55e' }}></span>
+                <span>Table</span>
+              </div>
+              <div className="legend-item">
+                <span className="legend-color" style={{ background: '#3b82f6' }}></span>
+                <span>View</span>
+              </div>
+              <div className="legend-item">
+                <span className="legend-color" style={{ background: '#f59e0b' }}></span>
+                <span>Lua UDF</span>
+              </div>
+              <div className="legend-item">
+                <span className="legend-color" style={{ background: '#a855f7' }}></span>
+                <span>Virtual Schema</span>
+              </div>
+              <div className="legend-item">
+                <span className="legend-color" style={{ background: '#64748b' }}></span>
+                <span>Connection</span>
+              </div>
+            </div>
+            <div className="legend-section">
+              <div className="legend-section-title">Edge Types</div>
+              <div className="legend-item">
+                <span className="legend-line" style={{ background: '#3b82f6' }}></span>
+                <span>Uses</span>
+              </div>
+              <div className="legend-item">
+                <span className="legend-line" style={{ background: '#8b5cf6' }}></span>
+                <span>Is Dependent On</span>
+              </div>
+              <div className="legend-item">
+                <span className="legend-line" style={{ background: '#f59e0b' }}></span>
+                <span>ETL</span>
+              </div>
+              <div className="legend-item">
+                <span className="legend-line" style={{ background: '#10b981' }}></span>
+                <span>References</span>
+              </div>
+              <div className="legend-item">
+                <span className="legend-line" style={{ background: '#ec4899' }}></span>
+                <span>Calls</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <aside className="sidebar">
