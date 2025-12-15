@@ -15,13 +15,14 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
-def load_from_gcs(bucket_name: str, blob_name: str) -> dict:
+def load_from_gcs(bucket_name: str, blob_name: str, project: str = None) -> dict:
     """
     Load JSON cache from Google Cloud Storage.
 
     Args:
         bucket_name: GCS bucket name
         blob_name: Path to file in bucket (e.g., 'lineage_cache.json')
+        project: GCP project ID (optional - auto-detected on App Engine)
 
     Returns:
         Parsed JSON data
@@ -36,7 +37,8 @@ def load_from_gcs(bucket_name: str, blob_name: str) -> dict:
 
     logger.info(f"Loading cache from GCS: gs://{bucket_name}/{blob_name}")
 
-    client = storage.Client()
+    # Project is auto-detected on App Engine, but can be specified via env var
+    client = storage.Client(project=project) if project else storage.Client()
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(blob_name)
 
@@ -74,10 +76,11 @@ class CacheLoader:
         # Check for GCS configuration
         gcs_bucket = os.environ.get("GCS_BUCKET")
         gcs_blob = os.environ.get("GCS_CACHE_FILE", "lineage_cache.json")
+        gcs_project = os.environ.get("GCS_PROJECT")  # Optional, auto-detected on App Engine
 
         if gcs_bucket:
             # Load from Google Cloud Storage
-            cache_data = load_from_gcs(gcs_bucket, gcs_blob)
+            cache_data = load_from_gcs(gcs_bucket, gcs_blob, gcs_project)
         else:
             # Load from local file
             if cache_path is None:

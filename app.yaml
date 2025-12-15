@@ -19,6 +19,7 @@ env_variables:
   # Uncomment and set your GCS bucket name to load cache from Cloud Storage
   # GCS_BUCKET: "your-bucket-name"
   # GCS_CACHE_FILE: "lineage_cache.json"
+  # GCS_PROJECT: "your-project-id"  # Optional - auto-detected on App Engine
 
 # Handlers - let FastAPI handle all routes
 handlers:
