@@ -328,8 +328,8 @@ class BigQueryLineageExtractor:
                 refs = sql_parser.parse(definition)
 
                 for ref in refs:
-                    # Resolve table reference to full object ID
-                    ref_table = ref["table"].upper()
+                    # ref is a TableReference object with .full_id() and .reference_type
+                    ref_table = ref.full_id().upper()
 
                     # Handle different reference formats
                     # Could be: table, dataset.table, project.dataset.table
@@ -340,7 +340,7 @@ class BigQueryLineageExtractor:
                             "source_id": source_id,
                             "target_id": view["id"],
                             "dependency_type": "USES",
-                            "reference_type": ref.get("type", "SELECT"),
+                            "reference_type": ref.reference_type,
                         })
                         deps_found += 1
                     elif source_id:
@@ -350,7 +350,7 @@ class BigQueryLineageExtractor:
                             "source_id": source_id,
                             "target_id": view["id"],
                             "dependency_type": "USES",
-                            "reference_type": ref.get("type", "SELECT"),
+                            "reference_type": ref.reference_type,
                         })
                         deps_found += 1
 
@@ -419,11 +419,12 @@ class BigQueryLineageExtractor:
                 refs = sql_parser.parse(definition)
 
                 for ref in refs:
-                    ref_table = ref["table"].upper()
+                    # ref is a TableReference object with .full_id() and .reference_type
+                    ref_table = ref.full_id().upper()
                     source_id = self._resolve_table_reference(ref_table, routine)
 
                     if source_id:
-                        ref_type = ref.get("type", "SELECT")
+                        ref_type = ref.reference_type
 
                         # Determine dependency type based on reference
                         if ref_type in ("DDL", "INSERT", "UPDATE", "DELETE", "MERGE"):
