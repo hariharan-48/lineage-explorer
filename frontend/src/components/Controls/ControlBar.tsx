@@ -8,6 +8,8 @@ export function ControlBar() {
     setLayoutDirection,
     layoutType,
     setLayoutType,
+    theme,
+    setTheme,
     collapseAll,
     nodes,
     edges,
@@ -192,6 +194,26 @@ export function ControlBar() {
             title="Export graph as image"
           >
             🖼️ PNG
+          </button>
+        </div>
+      </div>
+
+      <div className="control-group">
+        <label className="control-label">Theme</label>
+        <div className="button-group">
+          <button
+            className={`control-btn ${theme === 'light' ? 'active' : ''}`}
+            onClick={() => setTheme('light')}
+            title="Light Theme"
+          >
+            ☀️
+          </button>
+          <button
+            className={`control-btn ${theme === 'dark' ? 'active' : ''}`}
+            onClick={() => setTheme('dark')}
+            title="Dark Theme"
+          >
+            🌙
           </button>
         </div>
       </div>

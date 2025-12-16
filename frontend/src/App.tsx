@@ -45,6 +45,7 @@ function App() {
     setNodes: setStoreNodes,
     clearHighlight,
     highlightedEdgeIds,
+    theme,
   } = useGraphStore();
 
   const [nodes, setNodes, onNodesChange] = useNodesState<LineageNode>([]);
@@ -113,7 +114,7 @@ function App() {
   }, [setSelectedNode, clearHighlight]);
 
   return (
-    <div className="app">
+    <div className={`app ${theme === 'dark' ? 'dark-theme' : ''}`}>
       <header className="app-header">
         <div className="header-left">
           <h1 className="app-title">Lineage Explorer</h1>
@@ -168,7 +169,7 @@ function App() {
               type: 'smoothstep',
             }}
           >
-            <Background color="#e2e8f0" gap={20} />
+            <Background color={theme === 'dark' ? '#374151' : '#e2e8f0'} gap={20} />
             <Controls />
             <MiniMap
               nodeColor={miniMapNodeColor}

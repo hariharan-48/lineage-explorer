@@ -29,6 +29,7 @@ interface GraphState {
   // View settings
   layoutDirection: 'TB' | 'LR';
   layoutType: 'dagre' | 'force';
+  theme: 'light' | 'dark';
 
   // Path highlighting
   highlightedNodeIds: Set<string>;
@@ -46,6 +47,7 @@ interface GraphState {
   setSelectedNode: (nodeId: string | null) => void;
   setLayoutDirection: (direction: 'TB' | 'LR') => void;
   setLayoutType: (type: 'dagre' | 'force') => void;
+  setTheme: (theme: 'light' | 'dark') => void;
   highlightPath: (nodeId: string) => void;
   clearHighlight: () => void;
   setNodes: (nodes: LineageNode[]) => void;
@@ -109,6 +111,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   expandedNodes: new Map(),
   layoutDirection: 'LR',
   layoutType: 'dagre',
+  theme: 'light',
   highlightedNodeIds: new Set(),
   highlightedEdgeIds: new Set(),
   isLoading: false,
@@ -330,6 +333,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   setSelectedNode: (nodeId) => set({ selectedNodeId: nodeId }),
   setLayoutDirection: (direction) => set({ layoutDirection: direction }),
   setLayoutType: (type) => set({ layoutType: type }),
+  setTheme: (theme) => set({ theme }),
 
   highlightPath: (nodeId: string) => {
     const { edges } = get();

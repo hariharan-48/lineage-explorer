@@ -242,3 +242,34 @@
 .lineage-node .collapse-btn.downstream:hover {
   transform: translateY(-50%) scale(1.15);
 }
+
+/* Dark theme */
+.dark-theme .lineage-node {
+  background: rgba(30, 41, 59, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-color: rgba(148, 163, 184, 0.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .lineage-node:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.dark-theme .lineage-node .schema-name {
+  color: #94a3b8;
+}
+
+.dark-theme .lineage-node .object-name {
+  color: #f1f5f9;
+}
+
+.dark-theme .lineage-node .column-count,
+.dark-theme .lineage-node .row-count {
+  color: #64748b;
+}
+
+.dark-theme .lineage-node .handle {
+  background: #64748b;
+  border-color: rgba(30, 41, 59, 0.9);
+}

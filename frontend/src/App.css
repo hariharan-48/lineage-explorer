@@ -258,3 +258,123 @@ body,
   font-style: italic;
   padding: 2px 0;
 }
+
+/* ========================================
+   DARK GLASSMORPHISM THEME
+   ======================================== */
+
+.dark-theme {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
+}
+
+.dark-theme .app-header {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.dark-theme .app-title {
+  color: #f1f5f9;
+}
+
+.dark-theme .loading-indicator {
+  color: #60a5fa;
+}
+
+.dark-theme .loading-indicator::before {
+  border-color: rgba(148, 163, 184, 0.3);
+  border-top-color: #60a5fa;
+}
+
+.dark-theme .graph-container {
+  background: transparent;
+}
+
+.dark-theme .error-banner {
+  background: rgba(127, 29, 29, 0.8);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+}
+
+.dark-theme .empty-graph-content {
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.dark-theme .empty-graph-content h2 {
+  color: #f1f5f9;
+}
+
+.dark-theme .empty-graph-content p {
+  color: #94a3b8;
+}
+
+.dark-theme .empty-graph-content code {
+  background: rgba(51, 65, 85, 0.8);
+  color: #60a5fa;
+}
+
+.dark-theme .sidebar {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-left: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+/* React Flow dark theme */
+.dark-theme .react-flow__minimap {
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.dark-theme .react-flow__controls {
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.dark-theme .react-flow__controls-button {
+  background: rgba(30, 41, 59, 0.9);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  fill: #94a3b8;
+}
+
+.dark-theme .react-flow__controls-button:hover {
+  background: rgba(51, 65, 85, 0.9);
+}
+
+.dark-theme .react-flow__controls-button svg {
+  fill: #94a3b8;
+}
+
+/* Legend dark theme */
+.dark-theme .legend {
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.dark-theme .legend-title {
+  color: #f1f5f9;
+  border-bottom-color: rgba(148, 163, 184, 0.2);
+}
+
+.dark-theme .legend-section-title {
+  color: #94a3b8;
+}
+
+.dark-theme .legend-item {
+  color: #cbd5e1;
+}
+
+.dark-theme .legend-hint {
+  color: #94a3b8;
+}
