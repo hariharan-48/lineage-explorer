@@ -184,9 +184,7 @@ class BigQueryLineageExtractor:
             table_schema as dataset_id,
             table_name,
             table_type,
-            creation_time,
-            CAST(size_bytes AS INT64) as size_bytes,
-            CAST(row_count AS INT64) as row_count
+            creation_time
         FROM `{self.client.project}.{dataset}.INFORMATION_SCHEMA.TABLES`
         WHERE table_type = 'BASE TABLE'
         """
@@ -211,8 +209,7 @@ class BigQueryLineageExtractor:
                     "created_at": row.creation_time.isoformat() if row.creation_time else None,
                     "description": None,
                     "columns": [],  # Skip columns for now
-                    "row_count": row.row_count,
-                    "size_bytes": row.size_bytes,
+                    # row_count and size_bytes not available in INFORMATION_SCHEMA.TABLES
                 }
                 count += 1
 
