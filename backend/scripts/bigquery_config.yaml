@@ -1,0 +1,87 @@
+# BigQuery Lineage Extractor Configuration
+# =========================================
+# Copy this file to bigquery_config.local.yaml and fill in your connection details
+# The local file will be ignored by git
+
+# GCP Connection Settings
+connection:
+  # Default project ID (used if not specifying multiple projects)
+  project_id: "your-gcp-project-id"
+
+  # Path to service account credentials JSON file (optional if using default credentials)
+  # credentials_file: "path/to/service-account.json"
+
+  # Or set GOOGLE_APPLICATION_CREDENTIALS environment variable
+
+# Extraction Settings
+extraction:
+  # Multiple projects support
+  # List all GCP projects to extract from
+  projects:
+    - "project-1"
+    - "project-2"
+    # - "project-3"
+
+  # Datasets to extract
+  # Option 1: Same datasets for all projects (list)
+  # datasets:
+  #   - "analytics"
+  #   - "warehouse"
+
+  # Option 2: Different datasets per project (dict)
+  datasets:
+    project-1:
+      - "analytics"
+      - "warehouse"
+      - "sync_dataset"  # Tables synced from Exasol
+    project-2:
+      - "data_lake"
+      - "reporting"
+
+  # Dataset filters (applied after datasets list)
+  include_datasets: []
+
+  exclude_datasets:
+    - "_script"  # Internal BigQuery datasets
+    - "information_schema"
+
+  # Include UDFs and stored procedures
+  include_routines: true
+
+  # Cloud Composer DAG extraction
+  # Extract dependencies from Airflow DAGs
+  composer_dags:
+    enabled: false
+
+    # Option 1: Extract DAG info from a BigQuery metadata table
+    # This table should have columns:
+    #   dag_id, dag_name, schedule_interval, source_tables (JSON), target_tables (JSON), description
+    # metadata_table: "project-id.dataset.dag_metadata"
+
+    # Option 2: Parse DAG files from GCS bucket (not yet implemented)
+    # gcs_bucket: "your-composer-bucket/dags"
+
+# Script Parsing Settings (uses AST-based parser: sqlglot)
+script_parsing:
+  # Enable parsing of view/routine definitions to find table references
+  enabled: true
+
+# Output Settings
+output:
+  file_path: "../data/bigquery_cache.json"
+  pretty_print: true
+
+# Sync Dataset Configuration
+# ==========================
+# If you have datasets that contain tables synced from Exasol,
+# you can use this information to create cross-platform lineage links.
+#
+# sync_config:
+#   # Tables in these datasets originated from Exasol
+#   exasol_sync_datasets:
+#     - "project-1.sync_dataset"
+#
+#   # Naming convention mapping
+#   # How Exasol table names map to BigQuery table names
+#   # Example: EXASOL_SCHEMA.TABLE_NAME -> sync_dataset.STG_TABLE_NAME
+#   naming_pattern: "STG_{table}"

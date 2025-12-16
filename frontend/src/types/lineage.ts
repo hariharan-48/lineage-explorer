@@ -4,13 +4,24 @@ export type ObjectType =
   | 'VIEW'
   | 'LUA_UDF'
   | 'VIRTUAL_SCHEMA'
-  | 'CONNECTION';
+  | 'CONNECTION'
+  // BigQuery types
+  | 'BIGQUERY_TABLE'
+  | 'BIGQUERY_VIEW'
+  | 'BIGQUERY_UDF'
+  | 'BIGQUERY_PROCEDURE'
+  // Composer types
+  | 'COMPOSER_DAG';
+
+// Platform types
+export type Platform = 'exasol' | 'bigquery' | 'composer';
 
 export interface DatabaseObject {
   id: string;
   schema: string;
   name: string;
   type: ObjectType;
+  platform?: Platform;  // 'exasol' or 'bigquery'
   owner: string;
   object_id: number;
   created_at: string;

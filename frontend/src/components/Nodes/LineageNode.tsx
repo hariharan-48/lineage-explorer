@@ -5,19 +5,48 @@ import { useGraphStore } from '../../store/graphStore';
 import './LineageNode.css';
 
 const typeColors: Record<string, string> = {
+  // Exasol types
   TABLE: '#22c55e',
   VIEW: '#3b82f6',
   LUA_UDF: '#f59e0b',
   VIRTUAL_SCHEMA: '#a855f7',
   CONNECTION: '#64748b',
+  // BigQuery types
+  BIGQUERY_TABLE: '#4285f4',  // Google Blue
+  BIGQUERY_VIEW: '#34a853',   // Google Green
+  BIGQUERY_UDF: '#fbbc04',    // Google Yellow
+  BIGQUERY_PROCEDURE: '#ea4335', // Google Red
+  // Composer types
+  COMPOSER_DAG: '#00bfa5',    // Teal (Airflow color)
 };
 
 const typeIcons: Record<string, string> = {
+  // Exasol types
   TABLE: '📊',
   VIEW: '👁',
   LUA_UDF: '⚙️',
   VIRTUAL_SCHEMA: '🔗',
   CONNECTION: '🔌',
+  // BigQuery types
+  BIGQUERY_TABLE: '📊',
+  BIGQUERY_VIEW: '👁',
+  BIGQUERY_UDF: '⚙️',
+  BIGQUERY_PROCEDURE: '📜',
+  // Composer types
+  COMPOSER_DAG: '🔄',
+};
+
+// Helper to get display name for type
+const getTypeDisplayName = (type: string): string => {
+  const displayNames: Record<string, string> = {
+    BIGQUERY_TABLE: 'BQ TABLE',
+    BIGQUERY_VIEW: 'BQ VIEW',
+    BIGQUERY_UDF: 'BQ UDF',
+    BIGQUERY_PROCEDURE: 'BQ PROC',
+    COMPOSER_DAG: 'DAG',
+    LUA_UDF: 'LUA UDF',
+  };
+  return displayNames[type] || type.replace('_', ' ');
 };
 
 export const LineageNode = memo(({ data, id, selected }: NodeProps) => {
@@ -113,7 +142,7 @@ export const LineageNode = memo(({ data, id, selected }: NodeProps) => {
       {/* Node content */}
       <div className="node-header" style={{ backgroundColor: color }}>
         <span className="type-icon">{icon}</span>
-        <span className="type-label">{object.type.replace('_', ' ')}</span>
+        <span className="type-label">{getTypeDisplayName(object.type)}</span>
       </div>
 
       <div className="node-body">

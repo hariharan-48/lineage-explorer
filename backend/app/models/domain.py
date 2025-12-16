@@ -8,22 +8,37 @@ from datetime import datetime
 
 
 class ObjectType(str, Enum):
+    # Exasol types
     TABLE = "TABLE"
     VIEW = "VIEW"
     LUA_UDF = "LUA_UDF"
     VIRTUAL_SCHEMA = "VIRTUAL_SCHEMA"
     CONNECTION = "CONNECTION"
+    # BigQuery types
+    BIGQUERY_TABLE = "BIGQUERY_TABLE"
+    BIGQUERY_VIEW = "BIGQUERY_VIEW"
+    BIGQUERY_UDF = "BIGQUERY_UDF"
+    BIGQUERY_PROCEDURE = "BIGQUERY_PROCEDURE"
+    # Composer types
+    COMPOSER_DAG = "COMPOSER_DAG"
+
+
+class Platform(str, Enum):
+    EXASOL = "exasol"
+    BIGQUERY = "bigquery"
+    COMPOSER = "composer"
 
 
 class DatabaseObject(BaseModel):
-    """Represents any Exasol database object (table, view, UDF, etc.)."""
-    id: str  # Format: "SCHEMA.NAME"
+    """Represents any database object (table, view, UDF, etc.)."""
+    id: str  # Format: "SCHEMA.NAME" or "platform:project.dataset.name"
     schema_name: str = Field(alias="schema")
     name: str
     type: ObjectType
+    platform: Optional[Platform] = None  # exasol, bigquery, composer
     owner: str
     object_id: int
-    created_at: datetime
+    created_at: Optional[datetime] = None
     modified_at: Optional[datetime] = None
     description: Optional[str] = None
 

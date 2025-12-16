@@ -254,35 +254,37 @@ class ExasolLineageExtractor:
                 tables_by_schema[schema_name] = []
             tables_by_schema[schema_name].append(row)
 
-        # Get columns for all tables at once
-        column_query = """
-        SELECT
-            COLUMN_SCHEMA,
-            COLUMN_TABLE,
-            COLUMN_NAME,
-            COLUMN_TYPE,
-            COLUMN_ORDINAL_POSITION,
-            COLUMN_IS_NULLABLE,
-            COLUMN_COMMENT
-        FROM EXA_ALL_COLUMNS
-        WHERE COLUMN_OBJECT_TYPE = 'TABLE'
-        ORDER BY COLUMN_SCHEMA, COLUMN_TABLE, COLUMN_ORDINAL_POSITION
-        """
-
+        # Get columns for all tables at once (disabled by default to reduce cache size)
         columns_map: Dict[str, List[dict]] = {}
-        result = self.conn.execute(column_query)
-        for row in result:
-            key = f"{row[0]}.{row[1]}"
-            if key not in columns_map:
-                columns_map[key] = []
-            columns_map[key].append({
-                "name": row[2],
-                "data_type": row[3],
-                "ordinal_position": row[4],
-                "is_nullable": row[5],
-                "is_primary_key": False,  # Would need to query constraints
-                "description": row[6],
-            })
+        extraction_config = self.config.get("extraction", {})
+        if extraction_config.get("extract_columns", False):
+            column_query = """
+            SELECT
+                COLUMN_SCHEMA,
+                COLUMN_TABLE,
+                COLUMN_NAME,
+                COLUMN_TYPE,
+                COLUMN_ORDINAL_POSITION,
+                COLUMN_IS_NULLABLE,
+                COLUMN_COMMENT
+            FROM EXA_ALL_COLUMNS
+            WHERE COLUMN_OBJECT_TYPE = 'TABLE'
+            ORDER BY COLUMN_SCHEMA, COLUMN_TABLE, COLUMN_ORDINAL_POSITION
+            """
+
+            result = self.conn.execute(column_query)
+            for row in result:
+                key = f"{row[0]}.{row[1]}"
+                if key not in columns_map:
+                    columns_map[key] = []
+                columns_map[key].append({
+                    "name": row[2],
+                    "data_type": row[3],
+                    "ordinal_position": row[4],
+                    "is_nullable": row[5],
+                    "is_primary_key": False,  # Would need to query constraints
+                    "description": row[6],
+                })
 
         # Build table objects
         for schema_name, tables in tables_by_schema.items():
@@ -335,36 +337,38 @@ class ExasolLineageExtractor:
                 views_by_schema[schema_name] = []
             views_by_schema[schema_name].append(row)
 
-        # Get columns for all views
-        column_query = """
-        SELECT
-            COLUMN_SCHEMA,
-            COLUMN_TABLE,
-            COLUMN_NAME,
-            COLUMN_TYPE,
-            COLUMN_ORDINAL_POSITION,
-            COLUMN_IS_NULLABLE,
-            COLUMN_COMMENT
-        FROM EXA_ALL_COLUMNS
-        WHERE COLUMN_OBJECT_TYPE = 'VIEW'
-        ORDER BY COLUMN_SCHEMA, COLUMN_TABLE, COLUMN_ORDINAL_POSITION
-        """
-
+        # Get columns for all views (disabled by default to reduce cache size)
         columns_map: Dict[str, List[dict]] = {}
-        result = self.conn.execute(column_query)
-        for row in result:
-            key = f"{row[0]}.{row[1]}"
-            if key not in columns_map:
-                columns_map[key] = []
-            columns_map[key].append({
-                "name": row[2],
-                "data_type": row[3],
-                "ordinal_position": row[4],
-                "is_nullable": row[5],
-                "is_primary_key": False,
-                "description": row[6],
-                "source_columns": [],
-            })
+        extraction_config = self.config.get("extraction", {})
+        if extraction_config.get("extract_columns", False):
+            column_query = """
+            SELECT
+                COLUMN_SCHEMA,
+                COLUMN_TABLE,
+                COLUMN_NAME,
+                COLUMN_TYPE,
+                COLUMN_ORDINAL_POSITION,
+                COLUMN_IS_NULLABLE,
+                COLUMN_COMMENT
+            FROM EXA_ALL_COLUMNS
+            WHERE COLUMN_OBJECT_TYPE = 'VIEW'
+            ORDER BY COLUMN_SCHEMA, COLUMN_TABLE, COLUMN_ORDINAL_POSITION
+            """
+
+            result = self.conn.execute(column_query)
+            for row in result:
+                key = f"{row[0]}.{row[1]}"
+                if key not in columns_map:
+                    columns_map[key] = []
+                columns_map[key].append({
+                    "name": row[2],
+                    "data_type": row[3],
+                    "ordinal_position": row[4],
+                    "is_nullable": row[5],
+                    "is_primary_key": False,
+                    "description": row[6],
+                    "source_columns": [],
+                })
 
         # Build view objects
         for schema_name, views in views_by_schema.items():
