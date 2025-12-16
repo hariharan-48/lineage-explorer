@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import dagre from 'dagre';
 import {
   forceSimulation,
@@ -41,6 +41,9 @@ interface ForceLink extends SimulationLinkDatum<ForceNode> {
 
 export const useGraphLayout = () => {
   const { nodes, edges, layoutDirection, layoutType, setNodes } = useGraphStore();
+
+  // Track what we've already laid out to prevent infinite loops
+  const lastLayoutKey = useRef<string>('');
 
   // Dagre hierarchical layout (existing)
   const getDagreLayout = useCallback(
@@ -112,12 +115,22 @@ export const useGraphLayout = () => {
 
       const opts = { ...DEFAULT_OPTIONS, ...options };
 
-      // Create simulation nodes
-      const simNodes: ForceNode[] = inputNodes.map((node) => ({
-        id: node.id,
-        x: node.position.x || Math.random() * 800,
-        y: node.position.y || Math.random() * 600,
-      }));
+      // Calculate center based on number of nodes
+      const centerX = 400;
+      const centerY = 300;
+
+      // Create simulation nodes with deterministic initial positions based on node id
+      const simNodes: ForceNode[] = inputNodes.map((node, index) => {
+        // Use a hash of the node id for deterministic initial placement
+        const hash = node.id.split('').reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0);
+        const angle = (hash % 360) * (Math.PI / 180);
+        const radius = 100 + (index * 30);
+        return {
+          id: node.id,
+          x: centerX + Math.cos(angle) * radius,
+          y: centerY + Math.sin(angle) * radius,
+        };
+      });
 
       // Create simulation links
       const simLinks: ForceLink[] = inputEdges
@@ -141,7 +154,7 @@ export const useGraphLayout = () => {
             .strength(0.5)
         )
         .force('charge', forceManyBody().strength(-800)) // Repulsion strength
-        .force('center', forceCenter(400, 300)) // Center of the layout
+        .force('center', forceCenter(centerX, centerY)) // Center of the layout
         .force(
           'collide',
           forceCollide<ForceNode>()
@@ -192,24 +205,22 @@ export const useGraphLayout = () => {
 
   // Auto-layout when nodes/edges change or layout type changes
   useEffect(() => {
-    if (nodes.length > 0) {
-      const layoutedNodes = getLayoutedElements(nodes, edges);
+    if (nodes.length === 0) return;
 
-      // Only update if positions changed
-      const positionsChanged = layoutedNodes.some((node, index) => {
-        const originalNode = nodes[index];
-        return (
-          originalNode &&
-          (node.position.x !== originalNode.position.x ||
-            node.position.y !== originalNode.position.y)
-        );
-      });
+    // Create a key that represents the current layout state
+    const nodeIds = nodes.map(n => n.id).sort().join(',');
+    const edgeIds = edges.map(e => e.id).sort().join(',');
+    const layoutKey = `${layoutType}-${layoutDirection}-${nodeIds}-${edgeIds}`;
 
-      if (positionsChanged) {
-        setNodes(layoutedNodes);
-      }
+    // Skip if we've already laid out this exact configuration
+    if (layoutKey === lastLayoutKey.current) {
+      return;
     }
-  }, [nodes.length, edges.length, layoutDirection, layoutType, getLayoutedElements, setNodes, nodes, edges]);
+
+    const layoutedNodes = getLayoutedElements(nodes, edges);
+    lastLayoutKey.current = layoutKey;
+    setNodes(layoutedNodes);
+  }, [nodes, edges, layoutDirection, layoutType, getLayoutedElements, setNodes]);
 
   return { getLayoutedElements };
 };
