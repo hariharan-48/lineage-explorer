@@ -28,6 +28,7 @@ interface GraphState {
 
   // View settings
   layoutDirection: 'TB' | 'LR';
+  layoutType: 'dagre' | 'force';
 
   // Loading states
   isLoading: boolean;
@@ -40,6 +41,7 @@ interface GraphState {
   collapseAll: () => void;
   setSelectedNode: (nodeId: string | null) => void;
   setLayoutDirection: (direction: 'TB' | 'LR') => void;
+  setLayoutType: (type: 'dagre' | 'force') => void;
   setNodes: (nodes: LineageNode[]) => void;
   setEdges: (edges: Edge[]) => void;
   reset: () => void;
@@ -100,6 +102,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   rootObjectId: null,
   expandedNodes: new Map(),
   layoutDirection: 'LR',
+  layoutType: 'dagre',
   isLoading: false,
   error: null,
 
@@ -318,6 +321,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
 
   setSelectedNode: (nodeId) => set({ selectedNodeId: nodeId }),
   setLayoutDirection: (direction) => set({ layoutDirection: direction }),
+  setLayoutType: (type) => set({ layoutType: type }),
   setNodes: (nodes) => set({ nodes }),
   setEdges: (edges) => set({ edges }),
   reset: () =>

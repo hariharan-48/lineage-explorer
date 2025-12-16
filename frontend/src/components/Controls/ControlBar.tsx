@@ -6,6 +6,8 @@ export function ControlBar() {
   const {
     layoutDirection,
     setLayoutDirection,
+    layoutType,
+    setLayoutType,
     collapseAll,
     nodes,
     edges,
@@ -120,12 +122,33 @@ export function ControlBar() {
   return (
     <div className="control-bar">
       <div className="control-group">
-        <label className="control-label">Layout</label>
+        <label className="control-label">View</label>
+        <div className="button-group">
+          <button
+            className={`control-btn ${layoutType === 'dagre' ? 'active' : ''}`}
+            onClick={() => setLayoutType('dagre')}
+            title="Flow View - Hierarchical layout showing lineage direction"
+          >
+            Flow
+          </button>
+          <button
+            className={`control-btn ${layoutType === 'force' ? 'active' : ''}`}
+            onClick={() => setLayoutType('force')}
+            title="Graph View - Force-directed layout showing relationships"
+          >
+            Graph
+          </button>
+        </div>
+      </div>
+
+      <div className="control-group">
+        <label className="control-label">Direction</label>
         <div className="button-group">
           <button
             className={`control-btn ${layoutDirection === 'LR' ? 'active' : ''}`}
             onClick={() => setLayoutDirection('LR')}
             title="Left to Right"
+            disabled={layoutType === 'force'}
           >
             →
           </button>
@@ -133,6 +156,7 @@ export function ControlBar() {
             className={`control-btn ${layoutDirection === 'TB' ? 'active' : ''}`}
             onClick={() => setLayoutDirection('TB')}
             title="Top to Bottom"
+            disabled={layoutType === 'force'}
           >
             ↓
           </button>
