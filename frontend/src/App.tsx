@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   ReactFlow,
   Background,
@@ -43,6 +43,8 @@ function App() {
     error,
     setSelectedNode,
     setNodes: setStoreNodes,
+    clearHighlight,
+    highlightedEdgeIds,
   } = useGraphStore();
 
   const [nodes, setNodes, onNodesChange] = useNodesState<LineageNode>([]);
@@ -56,9 +58,31 @@ function App() {
     setNodes(storeNodes);
   }, [storeNodes, setNodes]);
 
+  // Apply edge highlighting styles
+  const styledEdges = useMemo(() => {
+    const hasHighlight = highlightedEdgeIds.size > 0;
+    return storeEdges.map((edge) => {
+      const isHighlighted = highlightedEdgeIds.has(edge.id);
+      const isDimmed = hasHighlight && !isHighlighted;
+
+      return {
+        ...edge,
+        style: {
+          ...edge.style,
+          stroke: isHighlighted ? '#f97316' : edge.style?.stroke,
+          strokeWidth: isHighlighted ? 4 : isDimmed ? 1 : edge.style?.strokeWidth || 2,
+          opacity: isDimmed ? 0.2 : 1,
+          transition: 'all 0.3s ease',
+        },
+        animated: isHighlighted ? true : edge.animated,
+        className: isHighlighted ? 'highlighted-edge' : isDimmed ? 'dimmed-edge' : '',
+      };
+    });
+  }, [storeEdges, highlightedEdgeIds]);
+
   useEffect(() => {
-    setEdges(storeEdges);
-  }, [storeEdges, setEdges]);
+    setEdges(styledEdges);
+  }, [styledEdges, setEdges]);
 
   // Sync React Flow changes back to store (for position updates after drag)
   const handleNodesChange = useCallback(
@@ -85,7 +109,8 @@ function App() {
 
   const handlePaneClick = useCallback(() => {
     setSelectedNode(null);
-  }, [setSelectedNode]);
+    clearHighlight();
+  }, [setSelectedNode, clearHighlight]);
 
   return (
     <div className="app">
@@ -119,6 +144,9 @@ function App() {
                 <p className="hint">
                   Try searching for: <code>FACT</code>, <code>DIM</code>, <code>VW</code>, or{' '}
                   <code>RPT</code>
+                </p>
+                <p className="hint">
+                  <strong>Tip:</strong> Double-click a node to highlight its connected path
                 </p>
               </div>
             </div>
@@ -197,6 +225,15 @@ function App() {
               <div className="legend-item">
                 <span className="legend-line" style={{ background: '#ec4899' }}></span>
                 <span>Calls</span>
+              </div>
+            </div>
+            <div className="legend-section">
+              <div className="legend-section-title">Interactions</div>
+              <div className="legend-hint">
+                Double-click node to highlight path
+              </div>
+              <div className="legend-hint">
+                Click empty area to clear highlight
               </div>
             </div>
           </div>

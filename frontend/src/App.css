@@ -251,3 +251,10 @@ body,
   border-radius: 2px;
   flex-shrink: 0;
 }
+
+.legend-hint {
+  font-size: 10px;
+  color: #64748b;
+  font-style: italic;
+  padding: 2px 0;
+}

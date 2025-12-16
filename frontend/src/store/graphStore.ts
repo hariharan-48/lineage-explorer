@@ -30,6 +30,10 @@ interface GraphState {
   layoutDirection: 'TB' | 'LR';
   layoutType: 'dagre' | 'force';
 
+  // Path highlighting
+  highlightedNodeIds: Set<string>;
+  highlightedEdgeIds: Set<string>;
+
   // Loading states
   isLoading: boolean;
   error: string | null;
@@ -42,6 +46,8 @@ interface GraphState {
   setSelectedNode: (nodeId: string | null) => void;
   setLayoutDirection: (direction: 'TB' | 'LR') => void;
   setLayoutType: (type: 'dagre' | 'force') => void;
+  highlightPath: (nodeId: string) => void;
+  clearHighlight: () => void;
   setNodes: (nodes: LineageNode[]) => void;
   setEdges: (edges: Edge[]) => void;
   reset: () => void;
@@ -103,6 +109,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   expandedNodes: new Map(),
   layoutDirection: 'LR',
   layoutType: 'dagre',
+  highlightedNodeIds: new Set(),
+  highlightedEdgeIds: new Set(),
   isLoading: false,
   error: null,
 
@@ -322,6 +330,44 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   setSelectedNode: (nodeId) => set({ selectedNodeId: nodeId }),
   setLayoutDirection: (direction) => set({ layoutDirection: direction }),
   setLayoutType: (type) => set({ layoutType: type }),
+
+  highlightPath: (nodeId: string) => {
+    const { edges } = get();
+    const highlightedNodeIds = new Set<string>([nodeId]);
+    const highlightedEdgeIds = new Set<string>();
+
+    // BFS to find all connected nodes (both upstream and downstream)
+    const visited = new Set<string>([nodeId]);
+    const queue = [nodeId];
+
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+
+      edges.forEach((edge) => {
+        // Check upstream (edge points TO current node)
+        if (edge.target === currentId && !visited.has(edge.source)) {
+          visited.add(edge.source);
+          highlightedNodeIds.add(edge.source);
+          highlightedEdgeIds.add(edge.id);
+          queue.push(edge.source);
+        }
+        // Check downstream (edge points FROM current node)
+        if (edge.source === currentId && !visited.has(edge.target)) {
+          visited.add(edge.target);
+          highlightedNodeIds.add(edge.target);
+          highlightedEdgeIds.add(edge.id);
+          queue.push(edge.target);
+        }
+      });
+    }
+
+    set({ highlightedNodeIds, highlightedEdgeIds });
+  },
+
+  clearHighlight: () => {
+    set({ highlightedNodeIds: new Set(), highlightedEdgeIds: new Set() });
+  },
+
   setNodes: (nodes) => set({ nodes }),
   setEdges: (edges) => set({ edges }),
   reset: () =>
@@ -331,6 +377,8 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       selectedNodeId: null,
       rootObjectId: null,
       expandedNodes: new Map(),
+      highlightedNodeIds: new Set(),
+      highlightedEdgeIds: new Set(),
       error: null,
     }),
 }));

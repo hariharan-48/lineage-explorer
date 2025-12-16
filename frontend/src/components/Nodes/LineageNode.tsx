@@ -52,7 +52,19 @@ const getTypeDisplayName = (type: string): string => {
 export const LineageNode = memo(({ data, id, selected }: NodeProps) => {
   const nodeData = data as LineageNodeData;
   const { object, hasUpstream, hasDownstream, isExpanded, isRoot } = nodeData;
-  const { expandNode, collapseNode, setSelectedNode, isLoading } = useGraphStore();
+  const {
+    expandNode,
+    collapseNode,
+    setSelectedNode,
+    highlightPath,
+    clearHighlight,
+    highlightedNodeIds,
+    isLoading
+  } = useGraphStore();
+
+  const isHighlighted = highlightedNodeIds.has(id);
+  const hasHighlight = highlightedNodeIds.size > 0;
+  const isDimmed = hasHighlight && !isHighlighted;
 
   const handleExpandUpstream = useCallback(
     (e: React.MouseEvent) => {
@@ -94,6 +106,19 @@ export const LineageNode = memo(({ data, id, selected }: NodeProps) => {
     setSelectedNode(id);
   }, [id, setSelectedNode]);
 
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      // Toggle highlight - if already highlighting this node's path, clear it
+      if (isHighlighted && highlightedNodeIds.size > 0) {
+        clearHighlight();
+      } else {
+        highlightPath(id);
+      }
+    },
+    [id, highlightPath, clearHighlight, isHighlighted, highlightedNodeIds.size]
+  );
+
   const color = typeColors[object.type] || '#64748b';
   const icon = typeIcons[object.type] || '📄';
 
@@ -103,11 +128,21 @@ export const LineageNode = memo(({ data, id, selected }: NodeProps) => {
   const showDownstreamExpandButton = hasDownstream && !isExpanded.downstream;
   const showDownstreamCollapseButton = isExpanded.downstream && !isRoot;
 
+  const nodeClasses = [
+    'lineage-node',
+    selected ? 'selected' : '',
+    isRoot ? 'root' : '',
+    isHighlighted ? 'highlighted' : '',
+    isDimmed ? 'dimmed' : '',
+  ].filter(Boolean).join(' ');
+
   return (
     <div
-      className={`lineage-node ${selected ? 'selected' : ''} ${isRoot ? 'root' : ''}`}
+      className={nodeClasses}
       onClick={handleNodeClick}
+      onDoubleClick={handleDoubleClick}
       style={{ '--node-color': color } as React.CSSProperties}
+      title="Double-click to highlight path"
     >
       {/* Upstream expand button (+) */}
       {showUpstreamExpandButton && (
