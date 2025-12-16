@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useGraphStore, type LineageNodeData } from '../../store/graphStore';
+import { ToggleSwitch } from './ToggleSwitch';
 import './ControlBar.css';
 
 export function ControlBar() {
@@ -104,7 +105,7 @@ export function ControlBar() {
     import('html-to-image').then(({ toPng }) => {
       const flowContainer = document.querySelector('.react-flow') as HTMLElement;
       if (flowContainer) {
-        toPng(flowContainer, { backgroundColor: '#f8fafc' })
+        toPng(flowContainer, { backgroundColor: theme === 'dark' ? '#1a1a2e' : '#f0f9ff' })
           .then((dataUrl) => {
             const link = document.createElement('a');
             link.download = `lineage_graph_${new Date().toISOString().split('T')[0]}.png`;
@@ -119,50 +120,27 @@ export function ControlBar() {
     }).catch(() => {
       alert('Image export requires html-to-image package. Export to CSV instead.');
     });
-  }, []);
+  }, [theme]);
 
   return (
     <div className="control-bar">
       <div className="control-group">
-        <label className="control-label">View</label>
-        <div className="button-group">
-          <button
-            className={`control-btn ${layoutType === 'dagre' ? 'active' : ''}`}
-            onClick={() => setLayoutType('dagre')}
-            title="Flow View - Hierarchical layout showing lineage direction"
-          >
-            Flow
-          </button>
-          <button
-            className={`control-btn ${layoutType === 'force' ? 'active' : ''}`}
-            onClick={() => setLayoutType('force')}
-            title="Graph View - Force-directed layout showing relationships"
-          >
-            Graph
-          </button>
-        </div>
+        <ToggleSwitch
+          leftLabel="Flow"
+          rightLabel="Graph"
+          isRight={layoutType === 'force'}
+          onChange={(isRight) => setLayoutType(isRight ? 'force' : 'dagre')}
+        />
       </div>
 
       <div className="control-group">
-        <label className="control-label">Direction</label>
-        <div className="button-group">
-          <button
-            className={`control-btn ${layoutDirection === 'LR' ? 'active' : ''}`}
-            onClick={() => setLayoutDirection('LR')}
-            title="Left to Right"
-            disabled={layoutType === 'force'}
-          >
-            →
-          </button>
-          <button
-            className={`control-btn ${layoutDirection === 'TB' ? 'active' : ''}`}
-            onClick={() => setLayoutDirection('TB')}
-            title="Top to Bottom"
-            disabled={layoutType === 'force'}
-          >
-            ↓
-          </button>
-        </div>
+        <ToggleSwitch
+          leftLabel="LR"
+          rightLabel="TB"
+          isRight={layoutDirection === 'TB'}
+          onChange={(isRight) => setLayoutDirection(isRight ? 'TB' : 'LR')}
+          disabled={layoutType === 'force'}
+        />
       </div>
 
       <div className="control-group">
@@ -185,7 +163,7 @@ export function ControlBar() {
             disabled={nodes.length === 0}
             title="Export lineage to CSV/Excel"
           >
-            📊 CSV
+            CSV
           </button>
           <button
             className="control-btn export-btn"
@@ -193,29 +171,18 @@ export function ControlBar() {
             disabled={nodes.length === 0}
             title="Export graph as image"
           >
-            🖼️ PNG
+            PNG
           </button>
         </div>
       </div>
 
       <div className="control-group">
-        <label className="control-label">Theme</label>
-        <div className="button-group">
-          <button
-            className={`control-btn ${theme === 'light' ? 'active' : ''}`}
-            onClick={() => setTheme('light')}
-            title="Light Theme"
-          >
-            ☀️
-          </button>
-          <button
-            className={`control-btn ${theme === 'dark' ? 'active' : ''}`}
-            onClick={() => setTheme('dark')}
-            title="Dark Theme"
-          >
-            🌙
-          </button>
-        </div>
+        <ToggleSwitch
+          leftLabel="Light"
+          rightLabel="Dark"
+          isRight={theme === 'dark'}
+          onChange={(isRight) => setTheme(isRight ? 'dark' : 'light')}
+        />
       </div>
 
       <div className="control-stats">

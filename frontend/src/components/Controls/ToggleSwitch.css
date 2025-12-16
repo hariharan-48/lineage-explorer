@@ -1,0 +1,114 @@
+.toggle-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toggle-switch.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.toggle-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  user-select: none;
+}
+
+.toggle-label.active {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.toggle-label:hover {
+  color: #64748b;
+}
+
+.toggle-label.active:hover {
+  color: #2563eb;
+}
+
+.toggle-track {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  background: rgba(148, 163, 184, 0.3);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.3s ease;
+}
+
+.toggle-track:hover {
+  background: rgba(148, 163, 184, 0.4);
+}
+
+.toggle-track.right {
+  background: rgba(59, 130, 246, 0.3);
+}
+
+.toggle-track.right:hover {
+  background: rgba(59, 130, 246, 0.4);
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: #64748b;
+  border-radius: 50%;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-track.right .toggle-thumb {
+  left: 18px;
+  background: #3b82f6;
+}
+
+/* Dark theme */
+.dark-theme .toggle-label {
+  color: #64748b;
+}
+
+.dark-theme .toggle-label.active {
+  color: #60a5fa;
+}
+
+.dark-theme .toggle-label:hover {
+  color: #94a3b8;
+}
+
+.dark-theme .toggle-label.active:hover {
+  color: #93c5fd;
+}
+
+.dark-theme .toggle-track {
+  background: rgba(71, 85, 105, 0.5);
+}
+
+.dark-theme .toggle-track:hover {
+  background: rgba(71, 85, 105, 0.7);
+}
+
+.dark-theme .toggle-track.right {
+  background: rgba(59, 130, 246, 0.4);
+}
+
+.dark-theme .toggle-track.right:hover {
+  background: rgba(59, 130, 246, 0.5);
+}
+
+.dark-theme .toggle-thumb {
+  background: #94a3b8;
+}
+
+.dark-theme .toggle-track.right .toggle-thumb {
+  background: #60a5fa;
+}
