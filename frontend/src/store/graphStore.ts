@@ -336,30 +336,20 @@ export const useGraphStore = create<GraphState>((set, get) => ({
     const highlightedNodeIds = new Set<string>([nodeId]);
     const highlightedEdgeIds = new Set<string>();
 
-    // BFS to find all connected nodes (both upstream and downstream)
-    const visited = new Set<string>([nodeId]);
-    const queue = [nodeId];
-
-    while (queue.length > 0) {
-      const currentId = queue.shift()!;
-
-      edges.forEach((edge) => {
-        // Check upstream (edge points TO current node)
-        if (edge.target === currentId && !visited.has(edge.source)) {
-          visited.add(edge.source);
-          highlightedNodeIds.add(edge.source);
-          highlightedEdgeIds.add(edge.id);
-          queue.push(edge.source);
-        }
-        // Check downstream (edge points FROM current node)
-        if (edge.source === currentId && !visited.has(edge.target)) {
-          visited.add(edge.target);
-          highlightedNodeIds.add(edge.target);
-          highlightedEdgeIds.add(edge.id);
-          queue.push(edge.target);
-        }
-      });
-    }
+    // Only highlight IMMEDIATE connections (1 level deep)
+    // This prevents highlighting the entire graph in densely connected data
+    edges.forEach((edge) => {
+      // Direct upstream (edge points TO this node)
+      if (edge.target === nodeId) {
+        highlightedNodeIds.add(edge.source);
+        highlightedEdgeIds.add(edge.id);
+      }
+      // Direct downstream (edge points FROM this node)
+      if (edge.source === nodeId) {
+        highlightedNodeIds.add(edge.target);
+        highlightedEdgeIds.add(edge.id);
+      }
+    });
 
     set({ highlightedNodeIds, highlightedEdgeIds });
   },

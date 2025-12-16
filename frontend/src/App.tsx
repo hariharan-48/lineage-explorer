@@ -230,10 +230,10 @@ function App() {
             <div className="legend-section">
               <div className="legend-section-title">Interactions</div>
               <div className="legend-hint">
-                Double-click node to highlight path
+                Double-click to highlight connections
               </div>
               <div className="legend-hint">
-                Click empty area to clear highlight
+                Click empty area to clear
               </div>
             </div>
           </div>

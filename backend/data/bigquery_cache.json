@@ -1,0 +1,358 @@
+{
+  "metadata": {
+    "source": "bigquery",
+    "projects": [
+      "bigquery-public-data",
+      "my-project"
+    ],
+    "extracted_at": "2025-12-16T23:33:23.894718",
+    "extractor_version": "1.0.0",
+    "object_count": 21,
+    "dependency_count": 11
+  },
+  "objects": {
+    "bigquery:bigquery-public-data.austin_bikeshare.bikeshare_stations": {
+      "id": "bigquery:bigquery-public-data.austin_bikeshare.bikeshare_stations",
+      "schema": "bigquery-public-data.austin_bikeshare",
+      "name": "bikeshare_stations",
+      "type": "BIGQUERY_TABLE",
+      "platform": "bigquery",
+      "owner": "data-team",
+      "object_id": 200001,
+      "created_at": "2025-12-16T23:33:23.894670",
+      "description": "Sample TABLE in bigquery-public-data.austin_bikeshare",
+      "columns": [],
+      "row_count": 5551229
+    },
+    "bigquery:bigquery-public-data.austin_bikeshare.bikeshare_trips": {
+      "id": "bigquery:bigquery-public-data.austin_bikeshare.bikeshare_trips",
+      "schema": "bigquery-public-data.austin_bikeshare",
+      "name": "bikeshare_trips",
+      "type": "BIGQUERY_TABLE",
+      "platform": "bigquery",
+      "owner": "data-team",
+      "object_id": 200002,
+      "created_at": "2025-12-16T23:33:23.894681",
+      "description": "Sample TABLE in bigquery-public-data.austin_bikeshare",
+      "columns": [],
+      "row_count": 7579834
+    },
+    "bigquery:bigquery-public-data.chicago_taxi_trips.taxi_trips": {
+      "id": "bigquery:bigquery-public-data.chicago_taxi_trips.taxi_trips",
+      "schema": "bigquery-public-data.chicago_taxi_trips",
+      "name": "taxi_trips",
+      "type": "BIGQUERY_TABLE",
+      "platform": "bigquery",
+      "owner": "data-team",
+      "object_id": 200003,
+      "created_at": "2025-12-16T23:33:23.894685",
+      "description": "Sample TABLE in bigquery-public-data.chicago_taxi_trips",
+      "columns": [],
+      "row_count": 117365
+    },
+    "bigquery:bigquery-public-data.new_york_taxi_trips.tlc_yellow_trips_2022": {
+      "id": "bigquery:bigquery-public-data.new_york_taxi_trips.tlc_yellow_trips_2022",
+      "schema": "bigquery-public-data.new_york_taxi_trips",
+      "name": "tlc_yellow_trips_2022",
+      "type": "BIGQUERY_TABLE",
+      "platform": "bigquery",
+      "owner": "data-team",
+      "object_id": 200004,
+      "created_at": "2025-12-16T23:33:23.894687",
+      "description": "Sample TABLE in bigquery-public-data.new_york_taxi_trips",
+      "columns": [],
+      "row_count": 7829230
+    },
+    "bigquery:bigquery-public-data.new_york_taxi_trips.tlc_green_trips_2022": {
+      "id": "bigquery:bigquery-public-data.new_york_taxi_trips.tlc_green_trips_2022",
+      "schema": "bigquery-public-data.new_york_taxi_trips",
+      "name": "tlc_green_trips_2022",
+      "type": "BIGQUERY_TABLE",
+      "platform": "bigquery",
+      "owner": "data-team",
+      "object_id": 200005,
+      "created_at": "2025-12-16T23:33:23.894689",
+      "description": "Sample TABLE in bigquery-public-data.new_york_taxi_trips",
+      "columns": [],
+      "row_count": 3222543
+    },
+    "bigquery:bigquery-public-data.github_repos.commits": {
+      "id": "bigquery:bigquery-public-data.github_repos.commits",
+      "schema": "bigquery-public-data.github_repos",
+      "name": "commits",
+      "type": "BIGQUERY_TABLE",
+      "platform": "bigquery",
+      "owner": "data-team",
+      "object_id": 200006,
+      "created_at": "2025-12-16T23:33:23.894691",
+      "description": "Sample TABLE in bigquery-public-data.github_repos",
+      "columns": [],
+      "row_count": 3056217
+    },
+    "bigquery:bigquery-public-data.github_repos.files": {
+      "id": "bigquery:bigquery-public-data.github_repos.files",
+      "schema": "bigquery-public-data.github_repos",
+      "name": "files",
+      "type": "BIGQUERY_TABLE",
+      "platform": "bigquery",
+      "owner": "data-team",
+      "object_id": 200007,
+      "created_at": "2025-12-16T23:33:23.894692",
+      "description": "Sample TABLE in bigquery-public-data.github_repos",
+      "columns": [],
+      "row_count": 3809942
+    },
+    "bigquery:bigquery-public-data.github_repos.languages": {
+      "id": "bigquery:bigquery-public-data.github_repos.languages",
+      "schema": "bigquery-public-data.github_repos",
+      "name": "languages",
+      "type": "BIGQUERY_TABLE",
+      "platform": "bigquery",
+      "owner": "data-team",
+      "object_id": 200008,
+      "created_at": "2025-12-16T23:33:23.894693",
+      "description": "Sample TABLE in bigquery-public-data.github_repos",
+      "columns": [],
+      "row_count": 9830964
+    },
+    "bigquery:my-project.analytics.user_events": {
+      "id": "bigquery:my-project.analytics.user_events",
+      "schema": "my-project.analytics",
+      "name": "user_events",
+      "type": "BIGQUERY_TABLE",
+      "platform": "bigquery",
+      "owner": "data-team",
+      "object_id": 200009,
+      "created_at": "2025-12-16T23:33:23.894695",
+      "description": "Sample TABLE in my-project.analytics",
+      "columns": [],
+      "row_count": 8246022
+    },
+    "bigquery:my-project.analytics.page_views": {
+      "id": "bigquery:my-project.analytics.page_views",
+      "schema": "my-project.analytics",
+      "name": "page_views",
+      "type": "BIGQUERY_TABLE",
+      "platform": "bigquery",
+      "owner": "data-team",
+      "object_id": 200010,
+      "created_at": "2025-12-16T23:33:23.894696",
+      "description": "Sample TABLE in my-project.analytics",
+      "columns": [],
+      "row_count": 9067726
+    },
+    "bigquery:my-project.analytics.daily_active_users": {
+      "id": "bigquery:my-project.analytics.daily_active_users",
+      "schema": "my-project.analytics",
+      "name": "daily_active_users",
+      "type": "BIGQUERY_VIEW",
+      "platform": "bigquery",
+      "owner": "data-team",
+      "object_id": 200011,
+      "created_at": "2025-12-16T23:33:23.894697",
+      "description": "Sample VIEW in my-project.analytics",
+      "columns": [],
+      "row_count": null
+    },
+    "bigquery:my-project.analytics.weekly_retention": {
+      "id": "bigquery:my-project.analytics.weekly_retention",
+      "schema": "my-project.analytics",
+      "name": "weekly_retention",
+      "type": "BIGQUERY_VIEW",
+      "platform": "bigquery",
+      "owner": "data-team",
+      "object_id": 200012,
+      "created_at": "2025-12-16T23:33:23.894699",
+      "description": "Sample VIEW in my-project.analytics",
+      "columns": [],
+      "row_count": null
+    },
+    "bigquery:my-project.warehouse.dim_users": {
+      "id": "bigquery:my-project.warehouse.dim_users",
+      "schema": "my-project.warehouse",
+      "name": "dim_users",
+      "type": "BIGQUERY_TABLE",
+      "platform": "bigquery",
+      "owner": "data-team",
+      "object_id": 200013,
+      "created_at": "2025-12-16T23:33:23.894700",
+      "description": "Sample TABLE in my-project.warehouse",
+      "columns": [],
+      "row_count": 7302616
+    },
+    "bigquery:my-project.warehouse.dim_products": {
+      "id": "bigquery:my-project.warehouse.dim_products",
+      "schema": "my-project.warehouse",
+      "name": "dim_products",
+      "type": "BIGQUERY_TABLE",
+      "platform": "bigquery",
+      "owner": "data-team",
+      "object_id": 200014,
+      "created_at": "2025-12-16T23:33:23.894701",
+      "description": "Sample TABLE in my-project.warehouse",
+      "columns": [],
+      "row_count": 6007636
+    },
+    "bigquery:my-project.warehouse.fact_orders": {
+      "id": "bigquery:my-project.warehouse.fact_orders",
+      "schema": "my-project.warehouse",
+      "name": "fact_orders",
+      "type": "BIGQUERY_TABLE",
+      "platform": "bigquery",
+      "owner": "data-team",
+      "object_id": 200015,
+      "created_at": "2025-12-16T23:33:23.894703",
+      "description": "Sample TABLE in my-project.warehouse",
+      "columns": [],
+      "row_count": 6819661
+    },
+    "bigquery:my-project.warehouse.fact_revenue": {
+      "id": "bigquery:my-project.warehouse.fact_revenue",
+      "schema": "my-project.warehouse",
+      "name": "fact_revenue",
+      "type": "BIGQUERY_TABLE",
+      "platform": "bigquery",
+      "owner": "data-team",
+      "object_id": 200016,
+      "created_at": "2025-12-16T23:33:23.894705",
+      "description": "Sample TABLE in my-project.warehouse",
+      "columns": [],
+      "row_count": 2302930
+    },
+    "bigquery:my-project.ml_features.user_features": {
+      "id": "bigquery:my-project.ml_features.user_features",
+      "schema": "my-project.ml_features",
+      "name": "user_features",
+      "type": "BIGQUERY_TABLE",
+      "platform": "bigquery",
+      "owner": "data-team",
+      "object_id": 200017,
+      "created_at": "2025-12-16T23:33:23.894707",
+      "description": "Sample TABLE in my-project.ml_features",
+      "columns": [],
+      "row_count": 8514781
+    },
+    "bigquery:my-project.ml_features.product_embeddings": {
+      "id": "bigquery:my-project.ml_features.product_embeddings",
+      "schema": "my-project.ml_features",
+      "name": "product_embeddings",
+      "type": "BIGQUERY_TABLE",
+      "platform": "bigquery",
+      "owner": "data-team",
+      "object_id": 200018,
+      "created_at": "2025-12-16T23:33:23.894708",
+      "description": "Sample TABLE in my-project.ml_features",
+      "columns": [],
+      "row_count": 698341
+    },
+    "bigquery:my-project.ml_features.compute_features": {
+      "id": "bigquery:my-project.ml_features.compute_features",
+      "schema": "my-project.ml_features",
+      "name": "compute_features",
+      "type": "BIGQUERY_PROCEDURE",
+      "platform": "bigquery",
+      "owner": "data-team",
+      "object_id": 200019,
+      "created_at": "2025-12-16T23:33:23.894710",
+      "description": "Sample PROCEDURE in my-project.ml_features",
+      "columns": [],
+      "row_count": null
+    },
+    "bigquery:my-project.ml_features.get_user_score": {
+      "id": "bigquery:my-project.ml_features.get_user_score",
+      "schema": "my-project.ml_features",
+      "name": "get_user_score",
+      "type": "BIGQUERY_UDF",
+      "platform": "bigquery",
+      "owner": "data-team",
+      "object_id": 200020,
+      "created_at": "2025-12-16T23:33:23.894711",
+      "description": "Sample UDF in my-project.ml_features",
+      "columns": [],
+      "row_count": null
+    },
+    "composer:etl_daily_pipeline": {
+      "id": "composer:etl_daily_pipeline",
+      "schema": "COMPOSER",
+      "name": "etl_daily_pipeline",
+      "type": "COMPOSER_DAG",
+      "platform": "composer",
+      "owner": "airflow",
+      "object_id": 200021,
+      "created_at": "2025-12-16T23:33:23.894716",
+      "description": "Daily ETL pipeline",
+      "schedule": "0 6 * * *"
+    }
+  },
+  "dependencies": {
+    "table_level": [
+      {
+        "source_id": "bigquery:my-project.analytics.user_events",
+        "target_id": "bigquery:my-project.analytics.daily_active_users",
+        "dependency_type": "USES",
+        "reference_type": "SELECT"
+      },
+      {
+        "source_id": "bigquery:my-project.analytics.user_events",
+        "target_id": "bigquery:my-project.analytics.weekly_retention",
+        "dependency_type": "USES",
+        "reference_type": "SELECT"
+      },
+      {
+        "source_id": "bigquery:my-project.warehouse.dim_users",
+        "target_id": "bigquery:my-project.analytics.weekly_retention",
+        "dependency_type": "USES",
+        "reference_type": "SELECT"
+      },
+      {
+        "source_id": "bigquery:my-project.analytics.user_events",
+        "target_id": "bigquery:my-project.warehouse.fact_orders",
+        "dependency_type": "USES",
+        "reference_type": "SELECT"
+      },
+      {
+        "source_id": "bigquery:my-project.warehouse.fact_orders",
+        "target_id": "bigquery:my-project.warehouse.fact_revenue",
+        "dependency_type": "USES",
+        "reference_type": "SELECT"
+      },
+      {
+        "source_id": "bigquery:my-project.warehouse.dim_users",
+        "target_id": "bigquery:my-project.ml_features.user_features",
+        "dependency_type": "USES",
+        "reference_type": "SELECT"
+      },
+      {
+        "source_id": "bigquery:my-project.analytics.daily_active_users",
+        "target_id": "bigquery:my-project.ml_features.user_features",
+        "dependency_type": "USES",
+        "reference_type": "SELECT"
+      },
+      {
+        "source_id": "bigquery:my-project.ml_features.user_features",
+        "target_id": "bigquery:my-project.ml_features.compute_features",
+        "dependency_type": "USES",
+        "reference_type": "SELECT"
+      },
+      {
+        "source_id": "bigquery:my-project.ml_features.get_user_score",
+        "target_id": "bigquery:my-project.analytics.weekly_retention",
+        "dependency_type": "USES",
+        "reference_type": "SELECT"
+      },
+      {
+        "source_id": "bigquery:my-project.analytics.user_events",
+        "target_id": "composer:etl_daily_pipeline",
+        "dependency_type": "READS",
+        "reference_type": "DAG_INPUT"
+      },
+      {
+        "source_id": "composer:etl_daily_pipeline",
+        "target_id": "bigquery:my-project.warehouse.fact_orders",
+        "dependency_type": "WRITES",
+        "reference_type": "DAG_OUTPUT"
+      }
+    ],
+    "column_level": []
+  }
+}
