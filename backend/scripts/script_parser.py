@@ -62,14 +62,122 @@ class SQLParser:
     - DDL statements
     """
 
-    def __init__(self, dialect: str = "postgres"):
+    # SQL built-in functions that might be misidentified as tables
+    SQL_FUNCTIONS = {
+        # Aggregate functions
+        'SUM', 'COUNT', 'AVG', 'MIN', 'MAX', 'ARRAY_AGG', 'STRING_AGG',
+        'STDDEV', 'VARIANCE', 'CORR', 'COVAR_POP', 'COVAR_SAMP',
+        # Math functions
+        'POWER', 'SQRT', 'ABS', 'CEIL', 'CEILING', 'FLOOR', 'ROUND',
+        'TRUNC', 'TRUNCATE', 'MOD', 'EXP', 'LN', 'LOG', 'LOG10', 'SIGN',
+        'SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', 'ATAN2', 'SINH', 'COSH', 'TANH',
+        'RAND', 'RANDOM', 'GREATEST', 'LEAST',
+        # String functions
+        'CONCAT', 'SUBSTR', 'SUBSTRING', 'LENGTH', 'LEN', 'CHAR_LENGTH',
+        'UPPER', 'LOWER', 'TRIM', 'LTRIM', 'RTRIM', 'LPAD', 'RPAD',
+        'REPLACE', 'REVERSE', 'SPLIT', 'LEFT', 'RIGHT', 'REPEAT',
+        'INSTR', 'POSITION', 'LOCATE', 'CHARINDEX', 'REGEXP_EXTRACT',
+        'REGEXP_REPLACE', 'REGEXP_CONTAINS', 'REGEXP_MATCH',
+        'FORMAT', 'PRINTF', 'TO_CHAR', 'CHR', 'ASCII',
+        # Date/time functions
+        'NOW', 'CURRENT_DATE', 'CURRENT_TIME', 'CURRENT_TIMESTAMP',
+        'DATE', 'TIME', 'TIMESTAMP', 'DATETIME', 'INTERVAL',
+        'YEAR', 'MONTH', 'DAY', 'HOUR', 'MINUTE', 'SECOND',
+        'EXTRACT', 'DATE_ADD', 'DATE_SUB', 'DATE_DIFF', 'DATEDIFF',
+        'DATE_TRUNC', 'DATE_FORMAT', 'TO_DATE', 'TO_TIMESTAMP',
+        'DATEADD', 'TIMESTAMPADD', 'TIMESTAMPDIFF',
+        # Type conversion
+        'CAST', 'CONVERT', 'COALESCE', 'NULLIF', 'NVL', 'NVL2', 'IFNULL', 'ISNULL',
+        'TRY_CAST', 'SAFE_CAST', 'PARSE_DATE', 'PARSE_TIMESTAMP',
+        # Conditional
+        'IF', 'IIF', 'CASE', 'WHEN', 'DECODE', 'CHOOSE',
+        # Window functions
+        'ROW_NUMBER', 'RANK', 'DENSE_RANK', 'NTILE', 'PERCENT_RANK', 'CUME_DIST',
+        'LAG', 'LEAD', 'FIRST_VALUE', 'LAST_VALUE', 'NTH_VALUE',
+        # JSON functions
+        'JSON_EXTRACT', 'JSON_VALUE', 'JSON_QUERY', 'JSON_ARRAY', 'JSON_OBJECT',
+        'TO_JSON', 'FROM_JSON', 'PARSE_JSON',
+        # Array functions
+        'ARRAY', 'UNNEST', 'ARRAY_LENGTH', 'ARRAY_TO_STRING', 'GENERATE_ARRAY',
+        # BigQuery specific
+        'STRUCT', 'SAFE_DIVIDE', 'DIV', 'IEEE_DIVIDE', 'FARM_FINGERPRINT',
+        'SHA256', 'SHA512', 'MD5', 'GENERATE_UUID',
+        # Other common functions
+        'EXISTS', 'IN', 'ANY', 'ALL', 'SOME',
+    }
+
+    # SQL keywords that might be misidentified as tables
+    SQL_KEYWORDS = {
+        'SET', 'DECLARE', 'BEGIN', 'END', 'CALL', 'EXECUTE', 'EXEC',
+        'RETURN', 'RETURNS', 'RAISE', 'EXCEPTION', 'HANDLER',
+        'LOOP', 'WHILE', 'FOR', 'IF', 'THEN', 'ELSE', 'ELSEIF', 'ENDIF',
+        'CURSOR', 'FETCH', 'OPEN', 'CLOSE', 'DEALLOCATE',
+        'TRANSACTION', 'COMMIT', 'ROLLBACK', 'SAVEPOINT',
+        'GRANT', 'REVOKE', 'DENY', 'ROLE', 'USER',
+        'INDEX', 'CONSTRAINT', 'PRIMARY', 'FOREIGN', 'KEY', 'UNIQUE',
+        'NULL', 'TRUE', 'FALSE', 'DEFAULT', 'AUTO_INCREMENT', 'IDENTITY',
+        'ASC', 'DESC', 'NULLS', 'FIRST', 'LAST',
+        'PARTITION', 'CLUSTER', 'DISTRIBUTE', 'SORT',
+        'TEMPORARY', 'TEMP', 'VOLATILE', 'TRANSIENT',
+        'OPTIONS', 'OPTION', 'SETTINGS', 'COMMENT',
+        'ROW', 'ROWS', 'RECORD', 'RECORDS', 'RESULT', 'RESULTS',
+        'DUAL',  # Oracle's dummy table
+    }
+
+    # Variable name patterns (commonly used prefixes)
+    VARIABLE_PREFIXES = ('V_', 'P_', 'L_', 'G_', 'IN_', 'OUT_', 'IO_', 'VAR_', 'PARAM_')
+
+    def __init__(self, dialect: str = "postgres", require_schema: bool = False):
         """
         Initialize SQL parser.
 
         Args:
-            dialect: SQL dialect for parsing. Use 'postgres' for Exasol compatibility.
+            dialect: SQL dialect for parsing. Use 'postgres' for Exasol, 'bigquery' for BigQuery.
+            require_schema: If True, only accept table refs with schema prefix (recommended for BigQuery).
         """
         self.dialect = dialect
+        self.require_schema = require_schema
+
+    def _is_valid_table_name(self, name: str, schema: Optional[str]) -> bool:
+        """
+        Check if a name is likely a real table reference (not a function, keyword, or variable).
+
+        Args:
+            name: The table name to check
+            schema: The schema name (if any)
+
+        Returns:
+            True if this looks like a valid table reference
+        """
+        name_upper = name.upper()
+
+        # Skip SQL built-in functions
+        if name_upper in self.SQL_FUNCTIONS:
+            logger.debug(f"Skipping SQL function: {name}")
+            return False
+
+        # Skip SQL keywords
+        if name_upper in self.SQL_KEYWORDS:
+            logger.debug(f"Skipping SQL keyword: {name}")
+            return False
+
+        # Skip variable-like names (v_something, p_something, etc.)
+        if name_upper.startswith(self.VARIABLE_PREFIXES):
+            logger.debug(f"Skipping variable: {name}")
+            return False
+
+        # Skip names starting with @ (SQL Server/BigQuery variables)
+        if name.startswith('@'):
+            logger.debug(f"Skipping @ variable: {name}")
+            return False
+
+        # If require_schema is True, skip tables without schema prefix
+        # This is useful for BigQuery where tables should always be dataset.table
+        if self.require_schema and not schema:
+            logger.debug(f"Skipping unqualified table (no schema): {name}")
+            return False
+
+        return True
 
     def parse(self, sql: str) -> List[TableReference]:
         """
@@ -107,6 +215,10 @@ class SQLParser:
 
                     # Skip CTE references
                     if table_name.upper() in cte_names:
+                        continue
+
+                    # Skip invalid table names (functions, keywords, variables)
+                    if not self._is_valid_table_name(table_name, schema_name):
                         continue
 
                     # Determine reference type based on parent
@@ -178,9 +290,13 @@ class SQLParser:
                 table_ref = match.group(1)
                 parts = table_ref.upper().split('.')
                 if len(parts) == 2:
-                    references.append(TableReference(schema=parts[0], name=parts[1], reference_type=ref_type))
+                    schema_name, table_name = parts[0], parts[1]
                 else:
-                    references.append(TableReference(schema=None, name=parts[0], reference_type=ref_type))
+                    schema_name, table_name = None, parts[0]
+
+                # Apply the same filtering as the main parser
+                if self._is_valid_table_name(table_name, schema_name):
+                    references.append(TableReference(schema=schema_name, name=table_name, reference_type=ref_type))
 
         return self._deduplicate(references)
 

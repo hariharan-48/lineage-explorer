@@ -311,7 +311,8 @@ class BigQueryLineageExtractor:
         """Parse view definitions to extract table dependencies."""
         print("\nParsing view definitions for dependencies...")
 
-        sql_parser = SQLParser(dialect="bigquery")
+        # Use require_schema=True to filter out unqualified names (functions, variables, keywords)
+        sql_parser = SQLParser(dialect="bigquery", require_schema=True)
         deps_found = 0
 
         views = [obj for obj in self.objects.values() if obj.get("definition")]
@@ -401,7 +402,8 @@ class BigQueryLineageExtractor:
         """Parse stored procedure and UDF definitions to extract table dependencies."""
         print("\nParsing routine definitions for dependencies...")
 
-        sql_parser = SQLParser(dialect="bigquery")
+        # Use require_schema=True to filter out unqualified names (functions, variables, keywords)
+        sql_parser = SQLParser(dialect="bigquery", require_schema=True)
         deps_found = 0
 
         routines = [obj for obj in self.objects.values()
