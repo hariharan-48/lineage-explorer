@@ -116,7 +116,7 @@ function App() {
     <div className="app">
       <header className="app-header">
         <div className="header-left">
-          <h1 className="app-title">Exasol Lineage Explorer</h1>
+          <h1 className="app-title">Lineage Explorer</h1>
         </div>
         <div className="header-center">
           <SearchPanel />
@@ -139,7 +139,7 @@ function App() {
           {nodes.length === 0 && !isLoading && !error && (
             <div className="empty-graph">
               <div className="empty-graph-content">
-                <h2>Welcome to Exasol Lineage Explorer</h2>
+                <h2>Welcome to Lineage Explorer</h2>
                 <p>Search for a database object to visualize its lineage</p>
                 <p className="hint">
                   Try searching for: <code>FACT</code>, <code>DIM</code>, <code>VW</code>, or{' '}
