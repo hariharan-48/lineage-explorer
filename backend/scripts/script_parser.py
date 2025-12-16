@@ -127,41 +127,31 @@ class SQLParser:
 
     def _get_reference_type(self, table_node) -> str:
         """Determine the type of table reference from AST context."""
-        parent = table_node.parent
-        is_inside_create = False
+        # Use find_ancestor for reliable detection (per sqlglot docs)
+        # Check for specific DML operations first
+        if table_node.find_ancestor(exp.Insert):
+            return 'INSERT'
+        if table_node.find_ancestor(exp.Update):
+            return 'UPDATE'
+        if table_node.find_ancestor(exp.Delete):
+            return 'DELETE'
+        if table_node.find_ancestor(exp.Merge):
+            return 'MERGE'
 
-        while parent:
-            parent_type = type(parent).__name__
+        # Check for DDL - CREATE TABLE target is inside Create but NOT inside Select
+        create_ancestor = table_node.find_ancestor(exp.Create)
+        select_ancestor = table_node.find_ancestor(exp.Select)
 
-            if parent_type == 'Insert':
-                return 'INSERT'
-            elif parent_type == 'Update':
-                return 'UPDATE'
-            elif parent_type == 'Delete':
-                return 'DELETE'
-            elif parent_type == 'Merge':
-                return 'MERGE'
-            elif parent_type in ('Join', 'From'):
-                # Check if it's specifically a JOIN
-                if parent_type == 'Join':
-                    return 'JOIN'
-                # Don't return SELECT yet - continue to check if inside CREATE
-                pass
-            elif parent_type == 'Create':
-                is_inside_create = True
-            elif parent_type == 'Drop':
-                return 'DDL'
+        if create_ancestor and not select_ancestor:
+            # This is the target table of CREATE TABLE
+            return 'DDL'
 
-            parent = parent.parent if hasattr(parent, 'parent') else None
+        if table_node.find_ancestor(exp.Drop):
+            return 'DDL'
 
-        # If inside a CREATE statement, check if this is the target table or a source table
-        # The first table in CREATE TABLE x AS SELECT is DDL (target)
-        # Tables in the SELECT part are reads (SELECT)
-        if is_inside_create:
-            # Check if this table is directly under Create (the target) or in a subquery (source)
-            parent = table_node.parent
-            if parent and type(parent).__name__ == 'Create':
-                return 'DDL'
+        # Check for JOIN
+        if table_node.find_ancestor(exp.Join):
+            return 'JOIN'
 
         return 'SELECT'  # Default - reading from table
 
@@ -171,11 +161,15 @@ class SQLParser:
 
         # Simple patterns for common SQL
         patterns = [
+            # DDL - CREATE TABLE (must be before FROM to catch CREATE TABLE x AS SELECT)
+            (r'\bCREATE\s+(?:OR\s+REPLACE\s+)?TABLE\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)', 'DDL'),
             (r'\bFROM\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)', 'SELECT'),
             (r'\bJOIN\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)', 'JOIN'),
             (r'\bINTO\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)', 'INSERT'),
             (r'\bUPDATE\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)', 'UPDATE'),
             (r'\bMERGE\s+INTO\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)', 'MERGE'),
+            (r'\bTRUNCATE\s+TABLE\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)', 'DDL'),
+            (r'\bDROP\s+TABLE\s+([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)', 'DDL'),
         ]
 
         for pattern, ref_type in patterns:
