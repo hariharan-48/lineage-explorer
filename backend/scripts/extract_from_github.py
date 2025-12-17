@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """
-Extract lineage from GitHub Enterprise repos.
+Extract lineage from GitHub repos.
 Scans repos for bigquery/ folder and parses SQL files.
 
 Usage:
     python extract_from_github.py --org YOUR_ORG --output github_lineage.json
     python extract_from_github.py --org YOUR_ORG --output github_lineage.json --merge-with existing_cache.json
+    python extract_from_github.py --org YOUR_ORG --repos repo1,repo2,repo3 --output github_lineage.json
 
 Environment:
     GITHUB_TOKEN: Personal access token with repo read access
-    GITHUB_API_URL: GitHub Enterprise API URL (default: https://github.yourcompany.com/api/v3)
+    GITHUB_API_URL: GitHub API URL (default: https://api.github.com)
 """
 
 import argparse
@@ -43,6 +44,7 @@ class GitHubConfig:
     bigquery_folder: str = "bigquery"
     branch: str = "main"  # or "master"
     verify_ssl: bool = True
+    repos: list = None  # If set, only scan these repos
 
     @property
     def headers(self) -> dict:
@@ -217,7 +219,8 @@ class GitHubLineageExtractor:
 
         # Parse for source tables
         try:
-            source_tables = self.sql_parser.extract_tables(content)
+            table_refs = self.sql_parser.parse(content)
+            source_tables = [{"name": ref.name, "schema": ref.schema} for ref in table_refs]
         except Exception as e:
             logger.warning(f"Failed to parse SQL in {file_path}: {e}")
             source_tables = []
@@ -302,8 +305,12 @@ class GitHubLineageExtractor:
         """Run the extraction process."""
         logger.info(f"Starting extraction from {self.config.org}...")
 
-        # List all repos
-        repos = self.list_org_repos()
+        # Use specified repos or list all repos
+        if self.config.repos:
+            logger.info(f"Scanning specified repos: {self.config.repos}")
+            repos = [{"name": name} for name in self.config.repos]
+        else:
+            repos = self.list_org_repos()
 
         # Process each repo
         for repo in repos:
@@ -387,6 +394,7 @@ def main():
     parser.add_argument("--bigquery-folder", default="bigquery", help="BigQuery folder name")
     parser.add_argument("--branch", default="main", help="Branch to scan (default: main)")
     parser.add_argument("--no-verify-ssl", action="store_true", help="Disable SSL verification")
+    parser.add_argument("--repos", help="Comma-separated list of repo names to scan (default: scan all)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")
 
     args = parser.parse_args()
@@ -395,12 +403,17 @@ def main():
         logging.getLogger().setLevel(logging.DEBUG)
 
     # Get config from args or env
-    api_url = args.api_url or os.environ.get("GITHUB_API_URL", "https://github.yourcompany.com/api/v3")
+    api_url = args.api_url or os.environ.get("GITHUB_API_URL", "https://api.github.com")
     token = args.token or os.environ.get("GITHUB_TOKEN")
 
     if not token:
         logger.error("GitHub token required. Set GITHUB_TOKEN env var or use --token")
         sys.exit(1)
+
+    # Parse repos list if provided
+    repos_list = None
+    if args.repos:
+        repos_list = [r.strip() for r in args.repos.split(",")]
 
     config = GitHubConfig(
         api_url=api_url,
@@ -408,7 +421,8 @@ def main():
         org=args.org,
         bigquery_folder=args.bigquery_folder,
         branch=args.branch,
-        verify_ssl=not args.no_verify_ssl
+        verify_ssl=not args.no_verify_ssl,
+        repos=repos_list
     )
 
     # Run extraction
