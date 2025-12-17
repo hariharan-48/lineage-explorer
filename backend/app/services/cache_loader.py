@@ -1,6 +1,6 @@
 """
 JSON cache loader with validation and singleton pattern.
-Supports loading from local file or Google Cloud Storage.
+Supports loading from local file or GCS Fuse mounted path.
 """
 import json
 import logging
@@ -14,36 +14,8 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-
-def load_from_gcs(bucket_name: str, blob_name: str, project: str = None) -> dict:
-    """
-    Load JSON cache from Google Cloud Storage.
-
-    Args:
-        bucket_name: GCS bucket name
-        blob_name: Path to file in bucket (e.g., 'lineage_cache.json')
-        project: GCP project ID (optional - auto-detected on App Engine)
-
-    Returns:
-        Parsed JSON data
-    """
-    try:
-        from google.cloud import storage
-    except ImportError:
-        raise ImportError(
-            "google-cloud-storage is required for GCS support. "
-            "Install it with: pip install google-cloud-storage"
-        )
-
-    logger.info(f"Loading cache from GCS: gs://{bucket_name}/{blob_name}")
-
-    # Project is auto-detected on App Engine, but can be specified via env var
-    client = storage.Client(project=project) if project else storage.Client()
-    bucket = client.bucket(bucket_name)
-    blob = bucket.blob(blob_name)
-
-    content = blob.download_as_text()
-    return json.loads(content)
+# GCS Fuse mount path for K8s deployment
+GCS_MOUNT_PATH = "/gcs-data/GLOBAL/lineage_cache.json"
 
 
 class CacheLoader:
@@ -67,35 +39,28 @@ class CacheLoader:
         Returns cached engine if already loaded.
 
         Supports loading from:
-        1. GCS bucket (if GCS_BUCKET env var is set)
-        2. Local file path
+        1. GCS Fuse mount (if /gcs-data exists - K8s deployment)
+        2. Local file path (development)
         """
         if self._engine is not None:
             return self._engine
 
-        # GCS configuration - for production (K8s deployment)
-        # Files are loaded from: gs://BUCKET_NAME/gcs-data/GLOBAL/lineage_cache.json
-        # Local: uses settings.CACHE_FILE_PATH (default)
-        # GCS: set GCS_BUCKET env var to enable
-        gcs_bucket = os.environ.get("GCS_BUCKET")  # Set in K8s deployment yaml
-        gcs_blob = "/gcs-data/GLOBAL/lineage_cache.json"
-        gcs_project = os.environ.get("GCS_PROJECT")  # Optional, auto-detected in GKE
-
-        if gcs_bucket:
-            # Load from Google Cloud Storage
-            cache_data = load_from_gcs(gcs_bucket, gcs_blob, gcs_project)
+        # Check for GCS Fuse mount (K8s deployment)
+        gcs_path = Path(GCS_MOUNT_PATH)
+        if gcs_path.exists():
+            cache_path = gcs_path
+            logger.info(f"Loading lineage cache from GCS Fuse mount: {cache_path}")
         else:
-            # Load from local file
+            # Load from local file (development)
             if cache_path is None:
                 cache_path = Path(settings.CACHE_FILE_PATH)
+            logger.info(f"Loading lineage cache from local file: {cache_path}")
 
-            logger.info(f"Loading lineage cache from {cache_path}")
+        if not cache_path.exists():
+            raise FileNotFoundError(f"Cache file not found: {cache_path}")
 
-            if not cache_path.exists():
-                raise FileNotFoundError(f"Cache file not found: {cache_path}")
-
-            with open(cache_path, "r") as f:
-                cache_data = json.load(f)
+        with open(cache_path, "r") as f:
+            cache_data = json.load(f)
 
         # Validate cache structure
         self._validate_cache(cache_data)
