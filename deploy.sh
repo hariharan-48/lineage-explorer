@@ -1,20 +1,19 @@
 #!/bin/bash
-# Deploy script for Lineage Explorer to Google App Engine
+# Deploy script for Lineage Explorer to GKE (Google Kubernetes Engine)
 #
 # Prerequisites:
 #   1. Install gcloud CLI: https://cloud.google.com/sdk/docs/install
-#   2. Login: gcloud auth login
-#   3. Set project: gcloud config set project YOUR_PROJECT_ID
+#   2. Install kubectl: gcloud components install kubectl
+#   3. Login: gcloud auth login
+#   4. Set project: gcloud config set project YOUR_PROJECT_ID
+#   5. Configure docker: gcloud auth configure-docker
 #
 # Usage:
-#   ./deploy.sh              # Build and deploy
-#   ./deploy.sh --build-only # Only build, don't deploy
+#   ./deploy.sh                    # Build images and deploy to GKE
+#   ./deploy.sh --build-only       # Only build images, don't deploy
+#   ./deploy.sh --deploy-only      # Only deploy (assumes images exist)
 
 set -e
-
-echo "========================================"
-echo "Lineage Explorer - App Engine Deployment"
-echo "========================================"
 
 # Colors for output
 RED='\033[0;31m'
@@ -26,80 +25,129 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Step 1: Build frontend
-echo -e "\n${YELLOW}Step 1: Building frontend...${NC}"
-cd frontend
-npm install
-npm run build
-cd ..
-
-# Step 2: Copy frontend dist to backend/static
-echo -e "\n${YELLOW}Step 2: Copying frontend build to backend/static...${NC}"
-rm -rf backend/static
-cp -r frontend/dist backend/static
-echo -e "${GREEN}Frontend copied to backend/static${NC}"
-
-# Step 3: Ensure requirements.txt has gunicorn
-echo -e "\n${YELLOW}Step 3: Checking requirements.txt...${NC}"
-if ! grep -q "gunicorn" backend/requirements.txt; then
-    echo "gunicorn" >> backend/requirements.txt
-    echo -e "${GREEN}Added gunicorn to requirements.txt${NC}"
-fi
-if ! grep -q "uvicorn" backend/requirements.txt; then
-    echo "uvicorn[standard]" >> backend/requirements.txt
-    echo -e "${GREEN}Added uvicorn to requirements.txt${NC}"
-fi
-
-# Step 4: Copy necessary files to backend for deployment
-echo -e "\n${YELLOW}Step 4: Preparing deployment files...${NC}"
-cp app.yaml backend/
-cp .gcloudignore backend/ 2>/dev/null || true
-
-# Check if build-only flag is set
-if [ "$1" == "--build-only" ]; then
-    echo -e "\n${GREEN}Build complete! Files ready in backend/ directory.${NC}"
-    echo "To deploy manually, run: cd backend && gcloud app deploy"
-    exit 0
-fi
-
-# Step 5: Deploy to App Engine
-echo -e "\n${YELLOW}Step 5: Deploying to App Engine...${NC}"
-cd backend
-
-# Check if gcloud is installed
-if ! command -v gcloud &> /dev/null; then
-    echo -e "${RED}Error: gcloud CLI not found. Please install it first.${NC}"
-    echo "Visit: https://cloud.google.com/sdk/docs/install"
-    exit 1
-fi
-
-# Check if user is logged in
-if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" | grep -q "@"; then
-    echo -e "${RED}Error: Not logged in to gcloud. Run: gcloud auth login${NC}"
-    exit 1
-fi
-
-# Check if project is set
+# Get project ID
 PROJECT=$(gcloud config get-value project 2>/dev/null)
 if [ -z "$PROJECT" ] || [ "$PROJECT" == "(unset)" ]; then
     echo -e "${RED}Error: No GCP project set. Run: gcloud config set project YOUR_PROJECT_ID${NC}"
     exit 1
 fi
 
-echo -e "Deploying to project: ${GREEN}$PROJECT${NC}"
+# Configuration
+REGION="${GKE_REGION:-us-central1}"
+CLUSTER="${GKE_CLUSTER:-lineage-cluster}"
+BACKEND_IMAGE="gcr.io/$PROJECT/lineage-backend"
+FRONTEND_IMAGE="gcr.io/$PROJECT/lineage-frontend"
+TAG="${IMAGE_TAG:-latest}"
+
+echo "========================================"
+echo "Lineage Explorer - GKE Deployment"
+echo "========================================"
+echo -e "Project:  ${GREEN}$PROJECT${NC}"
+echo -e "Region:   ${GREEN}$REGION${NC}"
+echo -e "Cluster:  ${GREEN}$CLUSTER${NC}"
 echo ""
 
-# Deploy
-gcloud app deploy --quiet
+# Function to build images
+build_images() {
+    echo -e "\n${YELLOW}Building Docker images...${NC}"
 
-echo -e "\n${GREEN}========================================"
-echo "Deployment complete!"
-echo "========================================${NC}"
-echo ""
-echo "Your app is available at:"
-echo -e "  ${GREEN}https://$PROJECT.appspot.com${NC}"
+    # Build backend
+    echo -e "\n${YELLOW}Building backend image...${NC}"
+    docker build -t "$BACKEND_IMAGE:$TAG" ./backend
+
+    # Build frontend
+    echo -e "\n${YELLOW}Building frontend image...${NC}"
+    docker build -t "$FRONTEND_IMAGE:$TAG" ./frontend
+
+    echo -e "${GREEN}Images built successfully${NC}"
+}
+
+# Function to push images
+push_images() {
+    echo -e "\n${YELLOW}Pushing images to GCR...${NC}"
+
+    docker push "$BACKEND_IMAGE:$TAG"
+    docker push "$FRONTEND_IMAGE:$TAG"
+
+    echo -e "${GREEN}Images pushed successfully${NC}"
+}
+
+# Function to deploy to GKE
+deploy_to_gke() {
+    echo -e "\n${YELLOW}Deploying to GKE...${NC}"
+
+    # Get cluster credentials
+    echo -e "\n${YELLOW}Getting cluster credentials...${NC}"
+    gcloud container clusters get-credentials "$CLUSTER" --region "$REGION" --project "$PROJECT"
+
+    # Update image references in manifests
+    echo -e "\n${YELLOW}Updating manifests with project ID...${NC}"
+    sed -i.bak "s|gcr.io/PROJECT_ID/|gcr.io/$PROJECT/|g" k8s/*.yaml
+    rm -f k8s/*.yaml.bak
+
+    # Apply manifests
+    echo -e "\n${YELLOW}Applying Kubernetes manifests...${NC}"
+    kubectl apply -f k8s/namespace.yaml
+    kubectl apply -f k8s/configmap.yaml
+    kubectl apply -f k8s/backend-deployment.yaml
+    kubectl apply -f k8s/frontend-deployment.yaml
+    kubectl apply -f k8s/ingress.yaml
+
+    # Wait for deployments
+    echo -e "\n${YELLOW}Waiting for deployments to be ready...${NC}"
+    kubectl rollout status deployment/lineage-backend -n lineage --timeout=120s
+    kubectl rollout status deployment/lineage-frontend -n lineage --timeout=120s
+
+    echo -e "${GREEN}Deployment complete!${NC}"
+}
+
+# Function to get ingress IP
+get_ingress_ip() {
+    echo -e "\n${YELLOW}Getting Ingress IP (may take a few minutes)...${NC}"
+
+    for i in {1..30}; do
+        IP=$(kubectl get ingress lineage-ingress -n lineage -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)
+        if [ -n "$IP" ]; then
+            echo -e "\n${GREEN}========================================"
+            echo "Deployment complete!"
+            echo "========================================${NC}"
+            echo ""
+            echo -e "Your app is available at: ${GREEN}http://$IP${NC}"
+            echo ""
+            return 0
+        fi
+        echo "  Waiting for IP assignment... ($i/30)"
+        sleep 10
+    done
+
+    echo -e "${YELLOW}Ingress IP not yet assigned. Check later with:${NC}"
+    echo "  kubectl get ingress lineage-ingress -n lineage"
+}
+
+# Parse arguments
+case "$1" in
+    --build-only)
+        build_images
+        echo -e "\n${GREEN}Build complete! To push and deploy:${NC}"
+        echo "  docker push $BACKEND_IMAGE:$TAG"
+        echo "  docker push $FRONTEND_IMAGE:$TAG"
+        echo "  ./deploy.sh --deploy-only"
+        ;;
+    --deploy-only)
+        deploy_to_gke
+        get_ingress_ip
+        ;;
+    *)
+        build_images
+        push_images
+        deploy_to_gke
+        get_ingress_ip
+        ;;
+esac
+
 echo ""
 echo "Useful commands:"
-echo "  gcloud app browse          # Open app in browser"
-echo "  gcloud app logs tail       # View live logs"
-echo "  gcloud app describe        # App info"
+echo "  kubectl get pods -n lineage                    # List pods"
+echo "  kubectl logs -f deployment/lineage-backend -n lineage   # Backend logs"
+echo "  kubectl logs -f deployment/lineage-frontend -n lineage  # Frontend logs"
+echo "  kubectl get ingress -n lineage                 # Ingress status"

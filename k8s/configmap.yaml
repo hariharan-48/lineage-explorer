@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lineage-config
+  namespace: lineage
+data:
+  # Backend configuration
+  PYTHONUNBUFFERED: "1"
+
+  # Optional: GCS configuration for loading cache from Cloud Storage
+  # GCS_BUCKET: "your-bucket-name"
+  # GCS_CACHE_FILE: "lineage_cache.json"

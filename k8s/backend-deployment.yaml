@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lineage-backend
+  namespace: lineage
+  labels:
+    app: lineage-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: lineage-backend
+  template:
+    metadata:
+      labels:
+        app: lineage-backend
+    spec:
+      containers:
+        - name: backend
+          image: gcr.io/PROJECT_ID/lineage-backend:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            # Optional: Load cache from GCS
+            # - name: GCS_BUCKET
+            #   value: "your-bucket-name"
+            # - name: GCS_CACHE_FILE
+            #   value: "lineage_cache.json"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lineage-backend
+  namespace: lineage
+spec:
+  selector:
+    app: lineage-backend
+  ports:
+    - port: 8000
+      targetPort: 8000
+  type: ClusterIP

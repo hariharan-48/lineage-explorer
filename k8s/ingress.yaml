@@ -1,0 +1,41 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lineage-ingress
+  namespace: lineage
+  annotations:
+    # For GKE with Google-managed certificate
+    kubernetes.io/ingress.class: "gce"
+    # Uncomment for HTTPS with managed cert
+    # networking.gke.io/managed-certificates: "lineage-cert"
+    # kubernetes.io/ingress.global-static-ip-name: "lineage-ip"
+spec:
+  rules:
+    - http:
+        paths:
+          # API routes go to backend
+          - path: /api/*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: lineage-backend
+                port:
+                  number: 8000
+          # Everything else goes to frontend
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: lineage-frontend
+                port:
+                  number: 80
+---
+# Optional: Managed certificate for HTTPS
+# apiVersion: networking.gke.io/v1
+# kind: ManagedCertificate
+# metadata:
+#   name: lineage-cert
+#   namespace: lineage
+# spec:
+#   domains:
+#     - lineage.your-domain.com
