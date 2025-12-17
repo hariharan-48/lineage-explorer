@@ -35,11 +35,15 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down Exasol Lineage API...")
 
 
+# Support for running behind a proxy with a path prefix (e.g., /api/lineage-api)
+ROOT_PATH = os.environ.get("ROOT_PATH", "")
+
 app = FastAPI(
     title=settings.APP_NAME,
     description="API for exploring Exasol database lineage",
     version="1.0.0",
     lifespan=lifespan,
+    root_path=ROOT_PATH,
 )
 
 # CORS middleware for frontend access
@@ -51,10 +55,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
+# Include routers - support both local dev (/api/v1) and K8s (/api/lineage-api)
 app.include_router(objects.router, prefix="/api/v1")
 app.include_router(lineage.router, prefix="/api/v1")
 app.include_router(search.router, prefix="/api/v1")
+
+# K8s ingress routes - same routers with K8s prefix
+app.include_router(objects.router, prefix="/api/lineage-api")
+app.include_router(lineage.router, prefix="/api/lineage-api")
+app.include_router(search.router, prefix="/api/lineage-api")
 
 
 @app.get("/")
@@ -68,6 +77,7 @@ async def root():
 
 
 @app.get("/health")
+@app.get("/api/lineage-api/health")
 async def health():
     """Health check endpoint."""
     return {"status": "healthy"}
