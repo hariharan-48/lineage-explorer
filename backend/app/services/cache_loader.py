@@ -73,14 +73,15 @@ class CacheLoader:
         if self._engine is not None:
             return self._engine
 
-        # GCS configuration - default bucket for production
+        # GCS configuration - for production (K8s deployment)
         # Files are loaded from: gs://BUCKET_NAME/gcs-data/GLOBAL/lineage_cache.json
+        # Local: uses settings.CACHE_FILE_PATH (default)
+        # GCS: set GCS_BUCKET env var to enable
         gcs_bucket = os.environ.get("GCS_BUCKET")  # Set in K8s deployment yaml
         gcs_blob = "/gcs-data/GLOBAL/lineage_cache.json"
         gcs_project = os.environ.get("GCS_PROJECT")  # Optional, auto-detected in GKE
-        use_gcs = os.environ.get("USE_GCS", "true").lower() == "true"
 
-        if use_gcs:
+        if gcs_bucket:
             # Load from Google Cloud Storage
             cache_data = load_from_gcs(gcs_bucket, gcs_blob, gcs_project)
         else:
