@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
 Merge two lineage cache JSON files.
-Handles both dict-based and list-based object formats.
+Handles different cache formats:
+- Base cache: objects as dict, dependencies as {"table_level": [...]}
+- GitHub cache: objects as list, dependencies as list
 
 Usage:
     python merge_caches.py --base lineage_cache.json --new github_lineage.json --output merged.json
@@ -15,19 +17,38 @@ from pathlib import Path
 def normalize_objects(objects):
     """Convert objects to dict format if it's a list."""
     if isinstance(objects, list):
-        return {obj.get("object_id") or obj.get("id"): obj for obj in objects}
-    return objects
+        result = {}
+        for obj in objects:
+            # Get the key - could be object_id (string) or id
+            key = obj.get("object_id") or obj.get("id")
+            if key:
+                result[key] = obj
+        return result
+    return objects if objects else {}
 
 
-def normalize_dependencies(deps):
-    """Convert dependencies to list format if needed."""
+def get_deps_list(deps):
+    """Extract dependencies as a flat list, handling nested structures."""
+    if isinstance(deps, list):
+        return deps
     if isinstance(deps, dict):
+        # Check if it's {"table_level": [...], "column_level": [...]}
+        if "table_level" in deps:
+            return deps.get("table_level", [])
+        # Otherwise treat as {id: dep} dict
         return list(deps.values())
-    return deps
+    return []
 
 
-def merge_caches(base: dict, new: dict) -> dict:
-    """Merge two lineage caches. Handles both dict and list formats."""
+def get_dep_key(dep):
+    """Extract (source, target) tuple from a dependency."""
+    source = dep.get("source_object_id") or dep.get("source_id") or dep.get("source")
+    target = dep.get("target_object_id") or dep.get("target_id") or dep.get("target")
+    return (source, target) if source and target else None
+
+
+def merge_caches(base: dict, new: dict) -> tuple:
+    """Merge two lineage caches. Handles different formats."""
     # Normalize objects to dict format
     base_objects = normalize_objects(base.get("objects", {}))
     new_objects = normalize_objects(new.get("objects", {}))
@@ -39,33 +60,34 @@ def merge_caches(base: dict, new: dict) -> dict:
             base_objects[obj_id] = obj
             added_objects += 1
 
-    # Normalize dependencies to list format
-    base_deps = normalize_dependencies(base.get("dependencies", []))
-    new_deps = normalize_dependencies(new.get("dependencies", []))
+    # Get dependencies as lists
+    base_deps_list = get_deps_list(base.get("dependencies", []))
+    new_deps_list = get_deps_list(new.get("dependencies", []))
 
     # Build set of existing deps
     existing_deps = set()
-    for d in base_deps:
-        source = d.get("source_object_id") or d.get("source_id") or d.get("source")
-        target = d.get("target_object_id") or d.get("target_id") or d.get("target")
-        if source and target:
-            existing_deps.add((source, target))
+    for dep in base_deps_list:
+        key = get_dep_key(dep)
+        if key:
+            existing_deps.add(key)
 
     # Merge dependencies
     added_deps = 0
-    for dep in new_deps:
-        source = dep.get("source_object_id") or dep.get("source_id") or dep.get("source")
-        target = dep.get("target_object_id") or dep.get("target_id") or dep.get("target")
-        if source and target:
-            key = (source, target)
-            if key not in existing_deps:
-                base_deps.append(dep)
-                existing_deps.add(key)
-                added_deps += 1
+    for dep in new_deps_list:
+        key = get_dep_key(dep)
+        if key and key not in existing_deps:
+            base_deps_list.append(dep)
+            existing_deps.add(key)
+            added_deps += 1
 
     # Update base with merged data
     base["objects"] = base_objects
-    base["dependencies"] = base_deps
+
+    # Preserve the original structure for dependencies
+    if isinstance(base.get("dependencies"), dict) and "table_level" in base.get("dependencies", {}):
+        base["dependencies"]["table_level"] = base_deps_list
+    else:
+        base["dependencies"] = base_deps_list
 
     # Update metadata
     base["metadata"]["merged_at"] = datetime.now().isoformat()
@@ -89,12 +111,12 @@ def main():
         new_cache = json.load(f)
 
     before_objects = len(normalize_objects(base_cache.get("objects", {})))
-    before_deps = len(normalize_dependencies(base_cache.get("dependencies", [])))
+    before_deps = len(get_deps_list(base_cache.get("dependencies", [])))
 
     merged, added_objects, added_deps = merge_caches(base_cache, new_cache)
 
     after_objects = len(merged["objects"])
-    after_deps = len(merged["dependencies"])
+    after_deps = len(get_deps_list(merged.get("dependencies", [])))
 
     with open(args.output, "w") as f:
         json.dump(merged, f, indent=2)
