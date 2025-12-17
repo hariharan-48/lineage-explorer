@@ -14,6 +14,9 @@ RUN npm run build
 # Production stage
 FROM nginx:alpine
 
+# Install fuse for GCS Fuse sidecar compatibility
+RUN apk add --no-cache fuse
+
 # Copy built assets
 COPY --from=build /app/dist /usr/share/nginx/html
 
