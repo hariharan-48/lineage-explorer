@@ -26,8 +26,9 @@ spec:
             # Load cache from GCS bucket
             - name: GCS_BUCKET
               value: "YOUR_BUCKET_NAME"  # Replace with your bucket
-            - name: GCS_CACHE_FILE
-              value: "lineage_cache.json"
+            # Default path: gcs-data/GLOBAL/lineage_cache.json
+            # - name: GCS_CACHE_FILE
+            #   value: "gcs-data/GLOBAL/lineage_cache.json"
           resources:
             requests:
               memory: "256Mi"
