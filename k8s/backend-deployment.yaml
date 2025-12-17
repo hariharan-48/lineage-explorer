@@ -23,11 +23,11 @@ spec:
           env:
             - name: PYTHONUNBUFFERED
               value: "1"
-            # Optional: Load cache from GCS
-            # - name: GCS_BUCKET
-            #   value: "your-bucket-name"
-            # - name: GCS_CACHE_FILE
-            #   value: "lineage_cache.json"
+            # Load cache from GCS bucket
+            - name: GCS_BUCKET
+              value: "YOUR_BUCKET_NAME"  # Replace with your bucket
+            - name: GCS_CACHE_FILE
+              value: "lineage_cache.json"
           resources:
             requests:
               memory: "256Mi"
