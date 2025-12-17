@@ -42,6 +42,7 @@ class GitHubConfig:
     org: str
     bigquery_folder: str = "bigquery"
     branch: str = "main"  # or "master"
+    verify_ssl: bool = True
 
     @property
     def headers(self) -> dict:
@@ -98,7 +99,7 @@ class GitHubLineageExtractor:
             url = f"{self.config.api_url}/orgs/{self.config.org}/repos"
             params = {"page": page, "per_page": per_page, "type": "all"}
 
-            response = requests.get(url, headers=self.config.headers, params=params)
+            response = requests.get(url, headers=self.config.headers, params=params, verify=self.config.verify_ssl)
             if response.status_code != 200:
                 logger.error(f"Failed to list repos: {response.status_code} - {response.text}")
                 break
@@ -119,7 +120,7 @@ class GitHubLineageExtractor:
         url = f"{self.config.api_url}/repos/{self.config.org}/{repo_name}/contents/{self.config.bigquery_folder}"
         params = {"ref": self.config.branch}
 
-        response = requests.get(url, headers=self.config.headers, params=params)
+        response = requests.get(url, headers=self.config.headers, params=params, verify=self.config.verify_ssl)
         return response.status_code == 200
 
     def get_sql_files(self, repo_name: str, path: str = "") -> list[dict]:
@@ -130,7 +131,7 @@ class GitHubLineageExtractor:
         url = f"{self.config.api_url}/repos/{self.config.org}/{repo_name}/contents/{path}"
         params = {"ref": self.config.branch}
 
-        response = requests.get(url, headers=self.config.headers, params=params)
+        response = requests.get(url, headers=self.config.headers, params=params, verify=self.config.verify_ssl)
         if response.status_code != 200:
             return []
 
@@ -154,7 +155,7 @@ class GitHubLineageExtractor:
         url = f"{self.config.api_url}/repos/{self.config.org}/{repo_name}/contents/{file_path}"
         params = {"ref": self.config.branch}
 
-        response = requests.get(url, headers=self.config.headers, params=params)
+        response = requests.get(url, headers=self.config.headers, params=params, verify=self.config.verify_ssl)
         if response.status_code != 200:
             return None
 
@@ -385,6 +386,7 @@ def main():
     parser.add_argument("--token", help="GitHub token (or set GITHUB_TOKEN env var)")
     parser.add_argument("--bigquery-folder", default="bigquery", help="BigQuery folder name")
     parser.add_argument("--branch", default="main", help="Branch to scan (default: main)")
+    parser.add_argument("--no-verify-ssl", action="store_true", help="Disable SSL verification")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")
 
     args = parser.parse_args()
@@ -405,7 +407,8 @@ def main():
         token=token,
         org=args.org,
         bigquery_folder=args.bigquery_folder,
-        branch=args.branch
+        branch=args.branch,
+        verify_ssl=not args.no_verify_ssl
     )
 
     # Run extraction
