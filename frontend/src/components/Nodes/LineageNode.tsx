@@ -18,6 +18,8 @@ const typeColors: Record<string, string> = {
   BIGQUERY_PROCEDURE: '#ea4335', // Google Red
   // Composer types
   COMPOSER_DAG: '#00bfa5',    // Teal (Airflow color)
+  // Bridge/Sync types
+  SYNC_JOB: '#f97316',        // Orange - represents data sync/bridge
 };
 
 const typeIcons: Record<string, string> = {
@@ -34,6 +36,8 @@ const typeIcons: Record<string, string> = {
   BIGQUERY_PROCEDURE: '📜',
   // Composer types
   COMPOSER_DAG: '🔄',
+  // Bridge/Sync types
+  SYNC_JOB: '🔀',
 };
 
 // Helper to get display name for type
@@ -45,6 +49,7 @@ const getTypeDisplayName = (type: string): string => {
     BIGQUERY_PROCEDURE: 'BQ PROC',
     COMPOSER_DAG: 'DAG',
     LUA_UDF: 'LUA UDF',
+    SYNC_JOB: 'SYNC',
   };
   return displayNames[type] || type.replace('_', ' ');
 };
