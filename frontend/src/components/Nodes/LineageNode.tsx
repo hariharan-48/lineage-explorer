@@ -16,6 +16,9 @@ const typeColors: Record<string, string> = {
   BIGQUERY_VIEW: '#34a853',   // Google Green
   BIGQUERY_UDF: '#fbbc04',    // Google Yellow
   BIGQUERY_PROCEDURE: '#ea4335', // Google Red
+  // Generic types (from GitHub SQL parsing)
+  PROCEDURE: '#ea4335',       // Same as BigQuery Procedure
+  FUNCTION: '#fbbc04',        // Same as BigQuery UDF
   // Composer types
   COMPOSER_DAG: '#00bfa5',    // Teal (Airflow color)
   // Bridge/Sync types
@@ -34,6 +37,9 @@ const typeIcons: Record<string, string> = {
   BIGQUERY_VIEW: '👁',
   BIGQUERY_UDF: '⚙️',
   BIGQUERY_PROCEDURE: '📜',
+  // Generic types (from GitHub SQL parsing)
+  PROCEDURE: '📜',
+  FUNCTION: '⚙️',
   // Composer types
   COMPOSER_DAG: '🔄',
   // Bridge/Sync types
@@ -47,6 +53,8 @@ const getTypeDisplayName = (type: string): string => {
     BIGQUERY_VIEW: 'BQ VIEW',
     BIGQUERY_UDF: 'BQ UDF',
     BIGQUERY_PROCEDURE: 'BQ PROC',
+    PROCEDURE: 'PROC',
+    FUNCTION: 'FUNC',
     COMPOSER_DAG: 'DAG',
     LUA_UDF: 'LUA UDF',
     SYNC_JOB: 'SYNC',

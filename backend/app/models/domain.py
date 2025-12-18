@@ -19,6 +19,9 @@ class ObjectType(str, Enum):
     BIGQUERY_VIEW = "BIGQUERY_VIEW"
     BIGQUERY_UDF = "BIGQUERY_UDF"
     BIGQUERY_PROCEDURE = "BIGQUERY_PROCEDURE"
+    # Generic types (used by GitHub extractor for raw SQL parsing)
+    PROCEDURE = "PROCEDURE"
+    FUNCTION = "FUNCTION"
     # Composer types
     COMPOSER_DAG = "COMPOSER_DAG"
     # Bridge/Sync types

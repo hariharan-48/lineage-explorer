@@ -33,7 +33,7 @@ RUN echo '{"status":"healthy"}' > ./dist/lineage-web/health
 # Copy index.html to root for SPA routing
 COPY --from=build /app/dist/index.html ./dist/index.html
 
-EXPOSE 8080
+EXPOSE 80
 
-# Serve the static files on port 8080
-CMD ["serve", "-s", "dist", "-l", "8080"]
+# Serve the static files on port 80
+CMD ["serve", "-s", "dist", "-l", "80"]
