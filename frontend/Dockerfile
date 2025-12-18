@@ -11,18 +11,18 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# Production stage - use GCP mirror to avoid Docker Hub rate limits
-FROM gcr.io/cloud-marketplace/google/nginx1:1.26
+# Production stage - use same node image to serve static files
+FROM node:20-alpine
 
-# Install fuse for GCS Fuse sidecar compatibility (Debian-based)
-RUN apt-get update && apt-get install -y --no-install-recommends fuse && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+
+# Install serve for static file serving
+RUN npm install -g serve
 
 # Copy built assets
-COPY --from=build /app/dist /usr/share/nginx/html
-
-# Copy nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist ./dist
 
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+# Serve the static files on port 80
+CMD ["serve", "-s", "dist", "-l", "80"]
