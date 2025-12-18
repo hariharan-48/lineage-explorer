@@ -80,5 +80,5 @@ class TableLevelDependency(BaseModel):
     """Represents a dependency between two database objects."""
     source_id: str
     target_id: str
-    dependency_type: str  # VIEW, ETL, CONNECTION, UDF_INPUT, UDF_OUTPUT, CONSTRAINT
-    reference_type: str   # SELECT, INSERT_SELECT, USES, PARAMETER, INSERT
+    dependency_type: str = "DATA"  # VIEW, ETL, CONNECTION, UDF_INPUT, UDF_OUTPUT, CONSTRAINT, DATA
+    reference_type: str = "SELECT"  # SELECT, INSERT_SELECT, USES, PARAMETER, INSERT
