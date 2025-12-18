@@ -21,12 +21,15 @@ class ObjectType(str, Enum):
     BIGQUERY_PROCEDURE = "BIGQUERY_PROCEDURE"
     # Composer types
     COMPOSER_DAG = "COMPOSER_DAG"
+    # Bridge/Sync types
+    SYNC_JOB = "SYNC_JOB"
 
 
 class Platform(str, Enum):
     EXASOL = "exasol"
     BIGQUERY = "bigquery"
     COMPOSER = "composer"
+    BRIDGE = "bridge"
 
 
 class DatabaseObject(BaseModel):
