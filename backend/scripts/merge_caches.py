@@ -15,12 +15,16 @@ from pathlib import Path
 
 
 def normalize_objects(objects):
-    """Convert objects to dict format if it's a list."""
+    """Convert objects to dict format if it's a list.
+
+    Uses 'id' field as primary key (e.g., 'SCHEMA.TABLE').
+    Falls back to 'object_id' only if 'id' is not present.
+    """
     if isinstance(objects, list):
         result = {}
         for obj in objects:
-            # Get the key - could be object_id (string) or id
-            key = obj.get("object_id") or obj.get("id")
+            # Prefer 'id' (string like SCHEMA.TABLE) over 'object_id' (numeric)
+            key = obj.get("id") or obj.get("object_id")
             if key:
                 result[key] = obj
         return result
@@ -47,18 +51,37 @@ def get_dep_key(dep):
     return (source, target) if source and target else None
 
 
+def merge_object_properties(base_obj: dict, new_obj: dict) -> dict:
+    """Merge properties from new_obj into base_obj, preferring non-null values."""
+    merged = base_obj.copy()
+    for key, value in new_obj.items():
+        # Add new keys or replace null/empty values
+        if key not in merged or merged.get(key) is None or merged.get(key) == "":
+            merged[key] = value
+        # For platform-specific fields, prefer the more specific one
+        elif key == "platform" and value and merged.get(key) == "exasol":
+            # Keep exasol platform for Exasol tables, but add source_platform
+            merged["source_platform"] = value
+    return merged
+
+
 def merge_caches(base: dict, new: dict) -> tuple:
     """Merge two lineage caches. Handles different formats."""
     # Normalize objects to dict format
     base_objects = normalize_objects(base.get("objects", {}))
     new_objects = normalize_objects(new.get("objects", {}))
 
-    # Merge objects
+    # Merge objects - combine properties if object exists
     added_objects = 0
+    updated_objects = 0
     for obj_id, obj in new_objects.items():
         if obj_id not in base_objects:
             base_objects[obj_id] = obj
             added_objects += 1
+        else:
+            # Object exists - merge properties to enrich it
+            base_objects[obj_id] = merge_object_properties(base_objects[obj_id], obj)
+            updated_objects += 1
 
     # Get dependencies as lists
     base_deps_list = get_deps_list(base.get("dependencies", []))
@@ -94,7 +117,7 @@ def merge_caches(base: dict, new: dict) -> tuple:
     if "stats" in new.get("metadata", {}):
         base["metadata"]["github_stats"] = new["metadata"]["stats"]
 
-    return base, added_objects, added_deps
+    return base, added_objects, updated_objects, added_deps
 
 
 def main():
@@ -113,7 +136,7 @@ def main():
     before_objects = len(normalize_objects(base_cache.get("objects", {})))
     before_deps = len(get_deps_list(base_cache.get("dependencies", [])))
 
-    merged, added_objects, added_deps = merge_caches(base_cache, new_cache)
+    merged, added_objects, updated_objects, added_deps = merge_caches(base_cache, new_cache)
 
     after_objects = len(merged["objects"])
     after_deps = len(get_deps_list(merged.get("dependencies", [])))
@@ -122,7 +145,7 @@ def main():
         json.dump(merged, f, indent=2)
 
     print(f"Merged: {args.new} -> {args.base}")
-    print(f"Objects: {before_objects} -> {after_objects} (+{added_objects})")
+    print(f"Objects: {before_objects} -> {after_objects} (+{added_objects} new, {updated_objects} enriched)")
     print(f"Dependencies: {before_deps} -> {after_deps} (+{added_deps})")
     print(f"Saved to: {args.output}")
 
