@@ -328,10 +328,13 @@ class GitHubLineageExtractor:
         objects_list = []
         for obj in self.objects.values():
             objects_list.append({
-                "object_id": obj.object_id,
+                "id": obj.object_id,  # String ID like "SCHEMA.TABLE"
+                "object_id": hash(obj.object_id) % 10000000,  # Numeric ID for Pydantic
                 "name": obj.name,
                 "schema": obj.schema_name,
                 "type": obj.object_type,
+                "platform": "bigquery",
+                "owner": obj.schema_name or "BIGQUERY",
                 "database": "BIGQUERY",
                 "source_repo": obj.source_repo,
                 "source_file": obj.source_file
@@ -340,7 +343,9 @@ class GitHubLineageExtractor:
         deps_list = []
         for dep in self.dependencies:
             deps_list.append({
-                "source_object_id": dep.source_id,
+                "source_id": dep.source_id,
+                "target_id": dep.target_id,
+                "source_object_id": dep.source_id,  # Keep for backwards compat
                 "target_object_id": dep.target_id,
                 "dependency_type": dep.dependency_type
             })
@@ -359,20 +364,23 @@ class GitHubLineageExtractor:
 
 def merge_caches(base: dict, new: dict) -> dict:
     """Merge two lineage caches."""
-    # Merge objects (avoid duplicates by object_id)
-    existing_ids = {obj["object_id"] for obj in base.get("objects", [])}
+    # Merge objects (avoid duplicates by id)
+    existing_ids = {obj.get("id") or obj.get("object_id") for obj in base.get("objects", [])}
     for obj in new.get("objects", []):
-        if obj["object_id"] not in existing_ids:
+        obj_id = obj.get("id") or obj.get("object_id")
+        if obj_id not in existing_ids:
             base["objects"].append(obj)
-            existing_ids.add(obj["object_id"])
+            existing_ids.add(obj_id)
 
     # Merge dependencies (avoid duplicates)
-    existing_deps = {
-        (d["source_object_id"], d["target_object_id"])
-        for d in base.get("dependencies", [])
-    }
+    def get_dep_key(d):
+        src = d.get("source_id") or d.get("source_object_id")
+        tgt = d.get("target_id") or d.get("target_object_id")
+        return (src, tgt)
+
+    existing_deps = {get_dep_key(d) for d in base.get("dependencies", [])}
     for dep in new.get("dependencies", []):
-        key = (dep["source_object_id"], dep["target_object_id"])
+        key = get_dep_key(dep)
         if key not in existing_deps:
             base["dependencies"].append(dep)
             existing_deps.add(key)
