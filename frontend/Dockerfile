@@ -1,5 +1,5 @@
-# Build stage
-FROM node:20-alpine AS build
+# Build stage - use GCP mirror to avoid Docker Hub rate limits
+FROM mirror.gcr.io/library/node:20-alpine AS build
 
 WORKDIR /app
 
@@ -15,8 +15,8 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# Production stage - use same node image to serve static files
-FROM node:20-alpine
+# Production stage - use GCP mirror to avoid Docker Hub rate limits
+FROM mirror.gcr.io/library/node:20-alpine
 
 WORKDIR /app
 
