@@ -3,11 +3,15 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
+# Base path for K8s ingress (e.g., /lineage-web/)
+ARG VITE_BASE_PATH=/lineage-web/
+ENV VITE_BASE_PATH=$VITE_BASE_PATH
+
 # Install dependencies
 COPY package*.json ./
 RUN npm ci
 
-# Copy source and build
+# Copy source and build with base path
 COPY . .
 RUN npm run build
 
