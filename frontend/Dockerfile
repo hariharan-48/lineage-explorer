@@ -22,7 +22,7 @@ RUN npm install -g serve
 # Copy built assets
 COPY --from=build /app/dist ./dist
 
-EXPOSE 80
+EXPOSE 8080
 
-# Serve the static files on port 80
-CMD ["serve", "-s", "dist", "-l", "80"]
+# Serve the static files on port 8080
+CMD ["serve", "-s", "dist", "-l", "8080"]
