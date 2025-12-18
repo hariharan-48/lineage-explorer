@@ -1,5 +1,5 @@
 # Build stage
-FROM node:20-alpine as build
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
@@ -11,11 +11,11 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine
+# Production stage - use GCP mirror to avoid Docker Hub rate limits
+FROM gcr.io/cloud-marketplace/google/nginx1:1.26
 
-# Install fuse for GCS Fuse sidecar compatibility
-RUN apk add --no-cache fuse
+# Install fuse for GCS Fuse sidecar compatibility (Debian-based)
+RUN apt-get update && apt-get install -y --no-install-recommends fuse && rm -rf /var/lib/apt/lists/*
 
 # Copy built assets
 COPY --from=build /app/dist /usr/share/nginx/html
