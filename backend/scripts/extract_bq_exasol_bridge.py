@@ -128,14 +128,38 @@ def build_lineage_from_sync(sync_records: list[dict]) -> dict:
 
             exa_stg_object_id = exa_stg_id  # Save for later reference
 
-            # Dependency: BQ -> Exasol STG
+            # Create SYNC_JOB node to visualize the bridge
+            batch_name = record.get("batch_name", "")
+            task_name = record.get("task_name", "")
+            sync_job_name = task_name or batch_name or f"SYNC_{bq_table}"
+            sync_job_id = f"SYNC.{batch_name}.{task_name}".upper() if batch_name else f"SYNC.{bq_id}".upper()
+
+            if sync_job_id not in objects:
+                objects[sync_job_id] = {
+                    "id": sync_job_id,
+                    "object_id": hash(sync_job_id) % 10000000,
+                    "name": sync_job_name,
+                    "schema": "SYNC",
+                    "type": "SYNC_JOB",
+                    "platform": "bridge",
+                    "owner": "ETL",
+                    "batch_name": batch_name,
+                    "task_name": task_name,
+                    "description": f"Syncs {bq_full_name} to {exa_stg_schema}.{exa_stg_table}",
+                }
+
+            # Dependency: BQ -> SYNC_JOB -> Exasol STG
             dependencies.append({
                 "source_id": bq_id,
+                "target_id": sync_job_id,
+                "dependency_type": "SYNC",
+                "reference_type": "BQ_TO_SYNC",
+            })
+            dependencies.append({
+                "source_id": sync_job_id,
                 "target_id": exa_stg_id,
                 "dependency_type": "SYNC",
-                "reference_type": "BQ_TO_EXASOL",
-                "batch_name": record.get("batch_name", ""),
-                "task_name": record.get("task_name", ""),
+                "reference_type": "SYNC_TO_EXASOL",
             })
 
         # Build Exasol DM object (if exists)
