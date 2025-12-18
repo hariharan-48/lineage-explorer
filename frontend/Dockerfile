@@ -23,8 +23,15 @@ WORKDIR /app
 # Install serve for static file serving
 RUN npm install -g serve
 
-# Copy built assets
-COPY --from=build /app/dist ./dist
+# Copy built assets into the path prefix folder
+# This way /lineage-web/* requests map to the correct files
+COPY --from=build /app/dist ./dist/lineage-web
+
+# Create a simple health check file
+RUN echo '{"status":"healthy"}' > ./dist/lineage-web/health
+
+# Copy index.html to root for SPA routing
+COPY --from=build /app/dist/index.html ./dist/index.html
 
 EXPOSE 8080
 
