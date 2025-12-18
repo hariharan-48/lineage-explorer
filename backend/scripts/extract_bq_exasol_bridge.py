@@ -30,7 +30,7 @@ def fetch_sync_metadata(project: str, dataset: str, table: str) -> list[dict]:
     client = bigquery.Client(project=project)
 
     query = f"""
-    SELECT
+    SELECT DISTINCT
         batch_name,
         task_name,
         table_type,
