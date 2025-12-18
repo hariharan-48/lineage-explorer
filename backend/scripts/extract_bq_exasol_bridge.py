@@ -91,17 +91,18 @@ def build_lineage_from_sync(sync_records: list[dict]) -> dict:
         else:
             bq_full_name = bq_table
 
-        bq_object_id = f"BIGQUERY.{bq_full_name}".upper()
+        bq_id = f"BIGQUERY.{bq_full_name}".upper()
 
         # Create BQ object
-        if bq_object_id not in objects:
-            objects[bq_object_id] = {
-                "id": bq_object_id,
-                "object_id": bq_object_id,
+        if bq_id not in objects:
+            objects[bq_id] = {
+                "id": bq_id,
+                "object_id": hash(bq_id) % 10000000,  # Generate numeric ID
                 "name": bq_table,
                 "schema": bq_dataset,
                 "type": "TABLE",
                 "platform": "bigquery",
+                "owner": "BIGQUERY",
                 "project": bq_project,
             }
 
@@ -111,23 +112,26 @@ def build_lineage_from_sync(sync_records: list[dict]) -> dict:
         exa_stg_object_id = None
 
         if exa_stg_schema and exa_stg_table:
-            exa_stg_object_id = f"{exa_stg_schema}.{exa_stg_table}".upper()
+            exa_stg_id = f"{exa_stg_schema}.{exa_stg_table}".upper()
 
-            if exa_stg_object_id not in objects:
-                objects[exa_stg_object_id] = {
-                    "id": exa_stg_object_id,
-                    "object_id": exa_stg_object_id,
+            if exa_stg_id not in objects:
+                objects[exa_stg_id] = {
+                    "id": exa_stg_id,
+                    "object_id": hash(exa_stg_id) % 10000000,
                     "name": exa_stg_table,
                     "schema": exa_stg_schema,
                     "type": "TABLE",
                     "platform": "exasol",
+                    "owner": exa_stg_schema,
                     "layer": "STG",
                 }
 
+            exa_stg_object_id = exa_stg_id  # Save for later reference
+
             # Dependency: BQ -> Exasol STG
             dependencies.append({
-                "source_id": bq_object_id,
-                "target_id": exa_stg_object_id,
+                "source_id": bq_id,
+                "target_id": exa_stg_id,
                 "dependency_type": "SYNC",
                 "reference_type": "BQ_TO_EXASOL",
                 "batch_name": record.get("batch_name", ""),
@@ -139,16 +143,17 @@ def build_lineage_from_sync(sync_records: list[dict]) -> dict:
         exa_dm_table = record.get("exa_dm_table_name", "")
 
         if exa_dm_schema and exa_dm_table:
-            exa_dm_object_id = f"{exa_dm_schema}.{exa_dm_table}".upper()
+            exa_dm_id = f"{exa_dm_schema}.{exa_dm_table}".upper()
 
-            if exa_dm_object_id not in objects:
-                objects[exa_dm_object_id] = {
-                    "id": exa_dm_object_id,
-                    "object_id": exa_dm_object_id,
+            if exa_dm_id not in objects:
+                objects[exa_dm_id] = {
+                    "id": exa_dm_id,
+                    "object_id": hash(exa_dm_id) % 10000000,
                     "name": exa_dm_table,
                     "schema": exa_dm_schema,
                     "type": "TABLE",
                     "platform": "exasol",
+                    "owner": exa_dm_schema,
                     "layer": "DM",
                 }
 
@@ -156,14 +161,14 @@ def build_lineage_from_sync(sync_records: list[dict]) -> dict:
             if exa_stg_object_id:
                 dependencies.append({
                     "source_id": exa_stg_object_id,
-                    "target_id": exa_dm_object_id,
+                    "target_id": exa_dm_id,
                     "dependency_type": "ETL",
                     "reference_type": "STG_TO_DM",
                 })
             else:
                 dependencies.append({
-                    "source_id": bq_object_id,
-                    "target_id": exa_dm_object_id,
+                    "source_id": bq_id,
+                    "target_id": exa_dm_id,
                     "dependency_type": "SYNC",
                     "reference_type": "BQ_TO_EXASOL",
                     "batch_name": record.get("batch_name", ""),
