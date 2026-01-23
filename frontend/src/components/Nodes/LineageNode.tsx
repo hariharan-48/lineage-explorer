@@ -253,40 +253,50 @@ export const LineageNode = memo(({ data, id, selected }: NodeProps) => {
               <span className="column-arrow">{isColumnsExpanded ? '▼' : '▶'}</span>
             </button>
 
-            {isColumnsExpanded && columnData && (
+            {isColumnsExpanded && (
               <div className="column-list">
-                {columnData.columns_with_lineage.slice(0, 20).map((colName) => {
-                  const colLineage = columnData.column_lineage[colName];
-                  const isSelected = selectedColumn?.objectId === id && selectedColumn?.column === colName;
-                  const hasSource = colLineage?.source_columns?.length > 0;
-                  const hasTarget = colLineage?.target_columns?.length > 0;
+                {(() => {
+                  // Use columns_with_lineage if available, otherwise fall back to object.columns
+                  const columnsToShow = columnData?.columns_with_lineage?.length
+                    ? columnData.columns_with_lineage
+                    : (object.columns?.map(c => c.name) || []);
 
-                  return (
-                    <div
-                      key={colName}
-                      className={`column-item ${isSelected ? 'selected' : ''}`}
-                      onClick={(e) => handleColumnClick(colName, e)}
-                      title={colLineage?.source_columns?.[0]?.transformation || 'Direct mapping'}
-                    >
-                      <span className={`column-direction ${hasSource ? 'has-source' : ''} ${hasTarget ? 'has-target' : ''}`}>
-                        {hasSource && '←'}
-                        {hasTarget && '→'}
-                      </span>
-                      <span className="column-name">{colName}</span>
-                      {colLineage?.source_columns?.[0]?.transformation_type &&
-                       colLineage.source_columns[0].transformation_type !== 'DIRECT' && (
-                        <span className={`transformation-badge ${colLineage.source_columns[0].transformation_type.toLowerCase()}`}>
-                          {colLineage.source_columns[0].transformation_type.charAt(0)}
+                  return columnsToShow.slice(0, 20).map((colName) => {
+                    const colLineage = columnData?.column_lineage?.[colName];
+                    const isSelected = selectedColumn?.objectId === id && selectedColumn?.column === colName;
+                    const hasSource = colLineage?.source_columns?.length > 0;
+                    const hasTarget = colLineage?.target_columns?.length > 0;
+
+                    return (
+                      <div
+                        key={colName}
+                        className={`column-item ${isSelected ? 'selected' : ''}`}
+                        onClick={(e) => handleColumnClick(colName, e)}
+                        title={colLineage?.source_columns?.[0]?.transformation || 'No lineage data'}
+                      >
+                        <span className={`column-direction ${hasSource ? 'has-source' : ''} ${hasTarget ? 'has-target' : ''}`}>
+                          {hasSource && '←'}
+                          {hasTarget && '→'}
                         </span>
-                      )}
+                        <span className="column-name">{colName}</span>
+                        {colLineage?.source_columns?.[0]?.transformation_type &&
+                         colLineage.source_columns[0].transformation_type !== 'DIRECT' && (
+                          <span className={`transformation-badge ${colLineage.source_columns[0].transformation_type.toLowerCase()}`}>
+                            {colLineage.source_columns[0].transformation_type.charAt(0)}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
+                {(() => {
+                  const totalColumns = columnData?.columns_with_lineage?.length || object.columns?.length || 0;
+                  return totalColumns > 20 && (
+                    <div className="column-item more">
+                      +{totalColumns - 20} more
                     </div>
                   );
-                })}
-                {columnData.columns_with_lineage.length > 20 && (
-                  <div className="column-item more">
-                    +{columnData.columns_with_lineage.length - 20} more
-                  </div>
-                )}
+                })()}
               </div>
             )}
           </div>

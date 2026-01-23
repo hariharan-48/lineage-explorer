@@ -387,7 +387,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   setShowColumnLineage: (show) => set({ showColumnLineage: show }),
 
   toggleColumnExpansion: async (objectId) => {
-    const { expandedColumns, columnLineageCache } = get();
+    const { expandedColumns, columnLineageCache, nodes } = get();
     const newExpandedColumns = new Map(expandedColumns);
 
     if (newExpandedColumns.has(objectId)) {
@@ -399,8 +399,19 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       if (!data) {
         data = await get().loadColumnLineage(objectId);
       }
-      if (data && data.has_column_lineage) {
-        newExpandedColumns.set(objectId, new Set(data.columns_with_lineage));
+
+      // Always expand - even without lineage data, show columns from object metadata
+      const node = nodes.find(n => n.id === objectId);
+      const objectColumns = (node?.data as LineageNodeData)?.object?.columns || [];
+      const columnNames = objectColumns.map((c: { name: string }) => c.name);
+
+      // Use columns_with_lineage if available, otherwise fall back to object columns
+      const columnsToShow = data?.columns_with_lineage?.length
+        ? data.columns_with_lineage
+        : columnNames;
+
+      if (columnsToShow.length > 0) {
+        newExpandedColumns.set(objectId, new Set(columnsToShow));
       }
     }
 
