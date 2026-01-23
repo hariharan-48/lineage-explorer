@@ -377,8 +377,14 @@ class ColumnLineageExtractor:
 
         # Find all Column references in the expression
         for col in expression.find_all(exp.Column):
-            table_ref = col.table if hasattr(col, 'table') and col.table else None
-            col_name = col.name if hasattr(col, 'name') else str(col)
+            # Get table reference - could be string or Identifier
+            table_ref = None
+            if hasattr(col, 'table') and col.table:
+                # Convert to string if it's an Identifier
+                table_ref = str(col.table) if col.table else None
+
+            # Get column name
+            col_name = str(col.name) if hasattr(col, 'name') and col.name else str(col)
 
             # Resolve table reference to object_id
             object_id = self._resolve_table_ref(table_ref, alias_map, schema_context)
@@ -388,6 +394,17 @@ class ColumnLineageExtractor:
             elif table_ref:
                 # Use the table reference as-is if we can't resolve it
                 source_cols.append((table_ref.upper(), col_name))
+
+        # Also check if expression itself is a Column (for simple cases)
+        if isinstance(expression, exp.Column) and not source_cols:
+            table_ref = str(expression.table) if hasattr(expression, 'table') and expression.table else None
+            col_name = str(expression.name) if hasattr(expression, 'name') and expression.name else None
+            if col_name:
+                object_id = self._resolve_table_ref(table_ref, alias_map, schema_context)
+                if object_id:
+                    source_cols.append((object_id, col_name))
+                elif table_ref:
+                    source_cols.append((table_ref.upper(), col_name))
 
         return source_cols
 
