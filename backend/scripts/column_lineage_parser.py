@@ -189,22 +189,26 @@ class ColumnLineageExtractor:
 
     def _clean_sql(self, sql: str) -> str:
         """Clean SQL by removing CREATE VIEW prefix."""
+        import re
         sql = sql.strip()
 
         # Common patterns to remove
         patterns = [
-            "CREATE OR REPLACE VIEW",
-            "CREATE VIEW",
-            "CREATE OR REPLACE FORCE VIEW",
+            r"CREATE\s+OR\s+REPLACE\s+FORCE\s+VIEW",
+            r"CREATE\s+OR\s+REPLACE\s+VIEW",
+            r"CREATE\s+VIEW",
         ]
 
         sql_upper = sql.upper()
         for pattern in patterns:
-            if sql_upper.startswith(pattern):
-                # Find AS keyword
-                as_pos = sql_upper.find(" AS ", len(pattern))
-                if as_pos > 0:
-                    sql = sql[as_pos + 4:].strip()
+            match = re.match(pattern, sql_upper)
+            if match:
+                # Find AS keyword after the view name (handles whitespace/newlines)
+                remaining = sql[match.end():]
+                # Match: view_name AS (with any whitespace)
+                as_match = re.search(r'^\s*\S+\s+AS\s+', remaining, re.IGNORECASE)
+                if as_match:
+                    sql = remaining[as_match.end():].strip()
                     break
 
         return sql
