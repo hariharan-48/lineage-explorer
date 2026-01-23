@@ -480,39 +480,92 @@ class ColumnLineageExtractor:
         schema_context: Optional[SchemaContext],
     ) -> List[ColumnLineageDep]:
         """
-        Fallback extraction when sqlglot fails.
+        Fallback extraction when sqlglot lineage fails.
 
-        Uses basic regex patterns to find column references.
+        Tries to parse SELECT clause for target columns and match source columns.
         """
         import re
 
         dependencies = []
+        sql_upper = sql.upper()
 
-        # Clean SQL
-        sql = sql.upper()
+        # Try to parse with sqlglot to at least get target columns
+        target_columns = []
+        try:
+            sql_clean = self._clean_sql(sql)
+            parsed = sqlglot.parse_one(sql_clean, dialect=self.sqlglot_dialect)
+            if parsed:
+                select_stmt = self._find_select(parsed)
+                if select_stmt:
+                    target_columns = self._extract_select_columns(select_stmt)
+        except Exception:
+            pass
 
-        # Simple pattern to find table.column references
-        # This is very basic and won't catch all cases
-        col_pattern = r'([A-Z_][A-Z0-9_]*(?:\.[A-Z_][A-Z0-9_]*)?)\.([A-Z_][A-Z0-9_]*)'
+        # Build alias map from SQL using regex
+        alias_map = {}
+        # Pattern: FROM/JOIN schema.table alias or schema.table AS alias
+        table_pattern = r'(?:FROM|JOIN)\s+([A-Z_][A-Z0-9_]*(?:\.[A-Z_][A-Z0-9_]*)?)\s+(?:AS\s+)?([A-Z_][A-Z0-9_]*)?'
+        for match in re.finditer(table_pattern, sql_upper):
+            table_name = match.group(1)
+            alias = match.group(2)
+            if alias and alias not in ('ON', 'WHERE', 'AND', 'OR', 'LEFT', 'RIGHT', 'INNER', 'OUTER', 'FULL', 'CROSS', 'JOIN'):
+                alias_map[alias] = table_name
+            # Also map short table name to full name
+            short_name = table_name.split('.')[-1]
+            alias_map[short_name] = table_name
 
-        for match in re.finditer(col_pattern, sql):
+        # Find source column references: table.column or alias.column
+        col_pattern = r'([A-Z_][A-Z0-9_]*)\.([A-Z_][A-Z0-9_]*)'
+        source_refs = []
+        for match in re.finditer(col_pattern, sql_upper):
             table_ref = match.group(1)
             col_name = match.group(2)
 
+            # Skip keywords
+            if table_ref in ('SYS', 'DUAL', 'AS', 'ON', 'AND', 'OR'):
+                continue
+
             # Resolve table reference
-            object_id = table_ref
+            object_id = alias_map.get(table_ref, table_ref)
             if schema_context and table_ref in schema_context.alias_map:
                 object_id = schema_context.alias_map[table_ref]
 
-            dep = ColumnLineageDep(
-                source_object_id=object_id,
-                source_column=col_name,
-                target_object_id=target_object_id,
-                target_column="UNKNOWN",  # Can't determine target in fallback
-                transformation=None,
-                transformation_type="UNKNOWN",
-            )
-            dependencies.append(dep)
+            source_refs.append((object_id, col_name))
+
+        # If we have target columns from parsing, try to match source to target
+        if target_columns:
+            for target_col, expression in target_columns:
+                # Find source columns in this expression
+                expr_sql = expression.sql(dialect=self.sqlglot_dialect).upper() if hasattr(expression, 'sql') else ""
+
+                # Determine transformation type
+                trans_type = "DIRECT"
+                if HAS_SQLGLOT_LINEAGE and isinstance(expression, exp.Column):
+                    trans_type = "DIRECT"
+                elif any(agg in expr_sql for agg in ['SUM(', 'COUNT(', 'AVG(', 'MIN(', 'MAX(']):
+                    trans_type = "AGGREGATE"
+                elif 'CASE' in expr_sql:
+                    trans_type = "CASE"
+                elif 'CAST(' in expr_sql or '::' in expr_sql:
+                    trans_type = "CAST"
+                elif any(fn in expr_sql for fn in ['COALESCE(', 'NVL(', 'CONCAT(']):
+                    trans_type = "FUNCTION"
+
+                # Find source columns referenced in this expression
+                for source_obj, source_col in source_refs:
+                    if source_col in expr_sql or f"{source_obj.split('.')[-1]}.{source_col}" in expr_sql:
+                        dep = ColumnLineageDep(
+                            source_object_id=source_obj,
+                            source_column=source_col,
+                            target_object_id=target_object_id,
+                            target_column=target_col,
+                            transformation=expr_sql[:200] if trans_type != "DIRECT" else None,
+                            transformation_type=trans_type,
+                        )
+                        dependencies.append(dep)
+        else:
+            # Can't determine target columns - skip creating UNKNOWN entries
+            logger.warning(f"Could not parse target columns for {target_object_id}")
 
         return dependencies
 
