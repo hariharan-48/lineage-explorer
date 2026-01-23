@@ -779,9 +779,24 @@ def merge_caches(exasol_cache: dict, bigquery_cache: dict) -> dict:
         bigquery_cache.get("dependencies", {}).get("table_level", [])
     )
 
+    # Merge column-level dependencies (update IDs for Exasol)
+    for col_dep in exasol_cache.get("dependencies", {}).get("column_level", []):
+        dep_copy = col_dep.copy()
+        if not dep_copy["source_object_id"].startswith("exasol:"):
+            dep_copy["source_object_id"] = f"exasol:{dep_copy['source_object_id']}"
+        if not dep_copy["target_object_id"].startswith("exasol:"):
+            dep_copy["target_object_id"] = f"exasol:{dep_copy['target_object_id']}"
+        merged["dependencies"]["column_level"].append(dep_copy)
+
+    # Add BigQuery column-level dependencies
+    merged["dependencies"]["column_level"].extend(
+        bigquery_cache.get("dependencies", {}).get("column_level", [])
+    )
+
     # Update counts
     merged["metadata"]["object_count"] = len(merged["objects"])
     merged["metadata"]["dependency_count"] = len(merged["dependencies"]["table_level"])
+    merged["metadata"]["column_dependency_count"] = len(merged["dependencies"]["column_level"])
 
     return merged
 
