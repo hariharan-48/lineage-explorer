@@ -265,7 +265,17 @@ export const LineageNode = memo(({ data, id, selected }: NodeProps) => {
                   const columnsToShow = lineageCols.length > 0 ? lineageCols : objectCols;
 
                   return columnsToShow.slice(0, 20).map((colName) => {
-                    const colLineage = columnData?.column_lineage?.[colName];
+                    // Case-insensitive lookup for column lineage
+                    let colLineage = columnData?.column_lineage?.[colName];
+                    if (!colLineage && columnData?.column_lineage) {
+                      const colNameUpper = colName.toUpperCase();
+                      const matchingKey = Object.keys(columnData.column_lineage).find(
+                        key => key.toUpperCase() === colNameUpper
+                      );
+                      if (matchingKey) {
+                        colLineage = columnData.column_lineage[matchingKey];
+                      }
+                    }
                     const isSelected = selectedColumn?.objectId === id && selectedColumn?.column === colName;
                     const hasSource = (colLineage?.source_columns?.length ?? 0) > 0;
                     const hasTarget = (colLineage?.target_columns?.length ?? 0) > 0;
