@@ -35,6 +35,16 @@ class Platform(str, Enum):
     BRIDGE = "bridge"
 
 
+class ColumnInfo(BaseModel):
+    """Column metadata for a database object."""
+    name: str
+    data_type: str
+    ordinal_position: Optional[int] = None
+    is_nullable: Optional[bool] = None
+    is_primary_key: Optional[bool] = None
+    description: Optional[str] = None
+
+
 class DatabaseObject(BaseModel):
     """Represents any database object (table, view, UDF, etc.)."""
     id: str  # Format: "SCHEMA.NAME" or "platform:project.dataset.name"
@@ -71,6 +81,9 @@ class DatabaseObject(BaseModel):
     # Statistics
     row_count: Optional[int] = None
     size_bytes: Optional[int] = None
+
+    # Column metadata
+    columns: Optional[List[ColumnInfo]] = None
 
     class Config:
         populate_by_name = True
