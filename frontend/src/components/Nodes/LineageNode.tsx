@@ -163,9 +163,10 @@ export const LineageNode = memo(({ data, id, selected }: NodeProps) => {
   const handleColumnClick = useCallback(
     (columnName: string, e: React.MouseEvent) => {
       e.stopPropagation();
+      setSelectedNode(id);  // Also select the node so sidebar shows it
       selectColumn(id, columnName);
     },
-    [id, selectColumn]
+    [id, selectColumn, setSelectedNode]
   );
 
   const color = typeColors[object.type] || '#64748b';

@@ -20,8 +20,20 @@ export function ObjectDetails() {
   let columnLineage: ColumnLineageResponse | null = null;
   if (selectedColumn && columnLineageCache.has(selectedColumn.objectId)) {
     const objLineage = columnLineageCache.get(selectedColumn.objectId);
-    if (objLineage && objLineage.column_lineage[selectedColumn.column]) {
-      columnLineage = objLineage.column_lineage[selectedColumn.column];
+    if (objLineage) {
+      // Try exact match first
+      if (objLineage.column_lineage[selectedColumn.column]) {
+        columnLineage = objLineage.column_lineage[selectedColumn.column];
+      } else {
+        // Try case-insensitive match
+        const colUpper = selectedColumn.column.toUpperCase();
+        const matchingKey = Object.keys(objLineage.column_lineage).find(
+          key => key.toUpperCase() === colUpper
+        );
+        if (matchingKey) {
+          columnLineage = objLineage.column_lineage[matchingKey];
+        }
+      }
     }
   }
 
