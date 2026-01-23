@@ -405,10 +405,11 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       const objectColumns = (node?.data as LineageNodeData)?.object?.columns || [];
       const columnNames = objectColumns.map((c: { name: string }) => c.name);
 
-      // Use columns_with_lineage if available, otherwise fall back to object columns
-      const columnsToShow = data?.columns_with_lineage?.length
-        ? data.columns_with_lineage
-        : columnNames;
+      // Use columns_with_lineage if available, filtering out "UNKNOWN"
+      // Fall back to object columns if no valid lineage columns
+      const lineageCols = (data?.columns_with_lineage || [])
+        .filter((c: string) => c && c !== 'UNKNOWN');
+      const columnsToShow = lineageCols.length > 0 ? lineageCols : columnNames;
 
       if (columnsToShow.length > 0) {
         newExpandedColumns.set(objectId, new Set(columnsToShow));

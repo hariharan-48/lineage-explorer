@@ -256,10 +256,12 @@ export const LineageNode = memo(({ data, id, selected }: NodeProps) => {
             {isColumnsExpanded && (
               <div className="column-list">
                 {(() => {
-                  // Use columns_with_lineage if available, otherwise fall back to object.columns
-                  const columnsToShow = columnData?.columns_with_lineage?.length
-                    ? columnData.columns_with_lineage
-                    : (object.columns?.map(c => c.name) || []);
+                  // Use columns_with_lineage if available, filtering out "UNKNOWN"
+                  // Fall back to object.columns if no valid lineage columns
+                  const lineageCols = (columnData?.columns_with_lineage || [])
+                    .filter((c: string) => c && c !== 'UNKNOWN');
+                  const objectCols = object.columns?.map(c => c.name) || [];
+                  const columnsToShow = lineageCols.length > 0 ? lineageCols : objectCols;
 
                   return columnsToShow.slice(0, 20).map((colName) => {
                     const colLineage = columnData?.column_lineage?.[colName];
