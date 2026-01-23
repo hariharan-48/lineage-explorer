@@ -31,17 +31,29 @@ def normalize_objects(objects):
     return objects if objects else {}
 
 
-def get_deps_list(deps):
+def get_deps_list(deps, level="table_level"):
     """Extract dependencies as a flat list, handling nested structures."""
     if isinstance(deps, list):
-        return deps
+        return deps if level == "table_level" else []
     if isinstance(deps, dict):
         # Check if it's {"table_level": [...], "column_level": [...]}
-        if "table_level" in deps:
-            return deps.get("table_level", [])
-        # Otherwise treat as {id: dep} dict
-        return list(deps.values())
+        if level in deps:
+            return deps.get(level, [])
+        # For table_level, also check if it's a flat dict
+        if level == "table_level" and "table_level" not in deps and "column_level" not in deps:
+            return list(deps.values())
+        return []
     return []
+
+
+def get_column_dep_key(dep):
+    """Extract unique key from a column-level dependency."""
+    return (
+        dep.get("source_object_id", ""),
+        dep.get("source_column", ""),
+        dep.get("target_object_id", ""),
+        dep.get("target_column", ""),
+    )
 
 
 def get_dep_key(dep):
@@ -83,18 +95,18 @@ def merge_caches(base: dict, new: dict) -> tuple:
             base_objects[obj_id] = merge_object_properties(base_objects[obj_id], obj)
             updated_objects += 1
 
-    # Get dependencies as lists
-    base_deps_list = get_deps_list(base.get("dependencies", []))
-    new_deps_list = get_deps_list(new.get("dependencies", []))
+    # Get table-level dependencies as lists
+    base_deps_list = get_deps_list(base.get("dependencies", []), "table_level")
+    new_deps_list = get_deps_list(new.get("dependencies", []), "table_level")
 
-    # Build set of existing deps
+    # Build set of existing table-level deps
     existing_deps = set()
     for dep in base_deps_list:
         key = get_dep_key(dep)
         if key:
             existing_deps.add(key)
 
-    # Merge dependencies
+    # Merge table-level dependencies
     added_deps = 0
     for dep in new_deps_list:
         key = get_dep_key(dep)
@@ -103,21 +115,41 @@ def merge_caches(base: dict, new: dict) -> tuple:
             existing_deps.add(key)
             added_deps += 1
 
+    # Get column-level dependencies as lists
+    base_col_deps_list = get_deps_list(base.get("dependencies", {}), "column_level")
+    new_col_deps_list = get_deps_list(new.get("dependencies", {}), "column_level")
+
+    # Build set of existing column-level deps
+    existing_col_deps = set()
+    for dep in base_col_deps_list:
+        key = get_column_dep_key(dep)
+        existing_col_deps.add(key)
+
+    # Merge column-level dependencies
+    added_col_deps = 0
+    for dep in new_col_deps_list:
+        key = get_column_dep_key(dep)
+        if key not in existing_col_deps:
+            base_col_deps_list.append(dep)
+            existing_col_deps.add(key)
+            added_col_deps += 1
+
     # Update base with merged data
     base["objects"] = base_objects
 
-    # Preserve the original structure for dependencies
-    if isinstance(base.get("dependencies"), dict) and "table_level" in base.get("dependencies", {}):
-        base["dependencies"]["table_level"] = base_deps_list
-    else:
-        base["dependencies"] = base_deps_list
+    # Always use structured format for dependencies
+    base["dependencies"] = {
+        "table_level": base_deps_list,
+        "column_level": base_col_deps_list,
+    }
 
     # Update metadata
     base["metadata"]["merged_at"] = datetime.now().isoformat()
+    base["metadata"]["column_dependency_count"] = len(base_col_deps_list)
     if "stats" in new.get("metadata", {}):
         base["metadata"]["github_stats"] = new["metadata"]["stats"]
 
-    return base, added_objects, updated_objects, added_deps
+    return base, added_objects, updated_objects, added_deps, added_col_deps
 
 
 def main():
@@ -134,19 +166,22 @@ def main():
         new_cache = json.load(f)
 
     before_objects = len(normalize_objects(base_cache.get("objects", {})))
-    before_deps = len(get_deps_list(base_cache.get("dependencies", [])))
+    before_deps = len(get_deps_list(base_cache.get("dependencies", []), "table_level"))
+    before_col_deps = len(get_deps_list(base_cache.get("dependencies", {}), "column_level"))
 
-    merged, added_objects, updated_objects, added_deps = merge_caches(base_cache, new_cache)
+    merged, added_objects, updated_objects, added_deps, added_col_deps = merge_caches(base_cache, new_cache)
 
     after_objects = len(merged["objects"])
-    after_deps = len(get_deps_list(merged.get("dependencies", [])))
+    after_deps = len(merged["dependencies"]["table_level"])
+    after_col_deps = len(merged["dependencies"]["column_level"])
 
     with open(args.output, "w") as f:
         json.dump(merged, f, indent=2)
 
     print(f"Merged: {args.new} -> {args.base}")
     print(f"Objects: {before_objects} -> {after_objects} (+{added_objects} new, {updated_objects} enriched)")
-    print(f"Dependencies: {before_deps} -> {after_deps} (+{added_deps})")
+    print(f"Table deps: {before_deps} -> {after_deps} (+{added_deps})")
+    print(f"Column deps: {before_col_deps} -> {after_col_deps} (+{added_col_deps})")
     print(f"Saved to: {args.output}")
 
 
