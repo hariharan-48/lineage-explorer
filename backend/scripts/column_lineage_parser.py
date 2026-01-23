@@ -232,6 +232,13 @@ class ColumnLineageExtractor:
         select = parsed.find(exp.Select)
         return select
 
+    def _normalize_column_name(self, col_name: str) -> str:
+        """Normalize column name by removing extra whitespace and newlines."""
+        import re
+        # Replace newlines and multiple spaces with single space
+        normalized = re.sub(r'\s+', ' ', col_name)
+        return normalized.strip()
+
     def _extract_select_columns(
         self,
         select: exp.Select
@@ -259,6 +266,8 @@ class ColumnLineageExtractor:
                 col_name = expr.sql(dialect=self.sqlglot_dialect) if hasattr(expr, 'sql') else f"col_{i}"
                 col_expr = expr
 
+            # Normalize column name to handle newlines/extra spaces in SQL
+            col_name = self._normalize_column_name(col_name)
             columns.append((col_name, col_expr))
 
         return columns
