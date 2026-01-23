@@ -134,8 +134,8 @@ class ExasolLineageExtractor:
             # Extract dependencies from system table
             self._extract_dependencies()
 
-            # Extract column-level lineage if enabled (disabled by default - slow and not used in UI)
-            if extraction_config.get("extract_column_lineage", False):
+            # Extract column-level lineage (enabled by default for column lineage UI)
+            if extraction_config.get("extract_column_lineage", True):
                 self._extract_column_lineage()
 
             return self._build_cache()
@@ -262,10 +262,10 @@ class ExasolLineageExtractor:
                 tables_by_schema[schema_name] = []
             tables_by_schema[schema_name].append(row)
 
-        # Get columns for all tables at once (disabled by default to reduce cache size)
+        # Get columns for all tables at once (enabled by default for column lineage)
         columns_map: Dict[str, List[dict]] = {}
         extraction_config = self.config.get("extraction", {})
-        if extraction_config.get("extract_columns", False):
+        if extraction_config.get("extract_columns", True):
             column_query = """
             SELECT
                 COLUMN_SCHEMA,
@@ -345,10 +345,10 @@ class ExasolLineageExtractor:
                 views_by_schema[schema_name] = []
             views_by_schema[schema_name].append(row)
 
-        # Get columns for all views (disabled by default to reduce cache size)
+        # Get columns for all views (enabled by default for column lineage)
         columns_map: Dict[str, List[dict]] = {}
         extraction_config = self.config.get("extraction", {})
-        if extraction_config.get("extract_columns", False):
+        if extraction_config.get("extract_columns", True):
             column_query = """
             SELECT
                 COLUMN_SCHEMA,

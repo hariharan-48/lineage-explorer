@@ -161,8 +161,10 @@ class BigQueryLineageExtractor:
                 # Extract from each dataset
                 for dataset in datasets:
                     print(f"\nProcessing dataset: {project_id}.{dataset}")
-                    self._extract_tables(dataset)
-                    self._extract_views(dataset)
+                    # Extract columns first (shared by tables and views)
+                    columns_map = self._extract_columns(dataset)
+                    self._extract_tables(dataset, columns_map)
+                    self._extract_views(dataset, columns_map)
 
                     if extraction_config.get("include_routines", True):
                         self._extract_routines(dataset)
@@ -181,13 +183,60 @@ class BigQueryLineageExtractor:
         if extraction_config.get("composer_dags", {}).get("enabled", False):
             self._extract_composer_dags()
 
-        # Extract column-level lineage if enabled
-        if extraction_config.get("extract_column_lineage", False):
+        # Extract column-level lineage (enabled by default for column lineage UI)
+        if extraction_config.get("extract_column_lineage", True):
             self._extract_column_lineage()
 
         return self._build_cache()
 
-    def _extract_tables(self, dataset: str) -> None:
+    def _extract_columns(self, dataset: str) -> Dict[str, List[dict]]:
+        """Extract columns for all tables/views in a dataset."""
+        columns_map: Dict[str, List[dict]] = {}
+
+        extraction_config = self.config.get("extraction", {})
+        if not extraction_config.get("extract_columns", True):
+            return columns_map
+
+        query = f"""
+        SELECT
+            table_catalog as project_id,
+            table_schema as dataset_id,
+            table_name,
+            column_name,
+            ordinal_position,
+            is_nullable,
+            data_type,
+            column_default
+        FROM `{self.client.project}.{dataset}.INFORMATION_SCHEMA.COLUMNS`
+        ORDER BY table_name, ordinal_position
+        """
+
+        try:
+            result = self.client.query(query).result()
+
+            for row in result:
+                object_id = self._make_object_id(
+                    row.project_id, row.dataset_id, row.table_name
+                )
+
+                if object_id not in columns_map:
+                    columns_map[object_id] = []
+
+                columns_map[object_id].append({
+                    "name": row.column_name,
+                    "data_type": row.data_type,
+                    "ordinal_position": row.ordinal_position,
+                    "is_nullable": row.is_nullable == "YES",
+                    "is_primary_key": False,
+                    "description": None,
+                })
+
+        except Exception as e:
+            print(f"    Warning: Could not extract columns: {e}")
+
+        return columns_map
+
+    def _extract_tables(self, dataset: str, columns_map: Dict[str, List[dict]]) -> None:
         """Extract table objects from a dataset."""
         print(f"  Extracting tables from {dataset}...")
 
@@ -221,8 +270,7 @@ class BigQueryLineageExtractor:
                     "object_id": self._next_id(),
                     "created_at": row.creation_time.isoformat() if row.creation_time else None,
                     "description": None,
-                    "columns": [],  # Skip columns for now
-                    # row_count and size_bytes not available in INFORMATION_SCHEMA.TABLES
+                    "columns": columns_map.get(object_id, []),
                 }
                 count += 1
 
@@ -231,7 +279,7 @@ class BigQueryLineageExtractor:
         except Exception as e:
             print(f"    Error extracting tables: {e}")
 
-    def _extract_views(self, dataset: str) -> None:
+    def _extract_views(self, dataset: str, columns_map: Dict[str, List[dict]]) -> None:
         """Extract view objects with definitions."""
         print(f"  Extracting views from {dataset}...")
 
@@ -264,7 +312,7 @@ class BigQueryLineageExtractor:
                     "created_at": None,
                     "description": None,
                     "definition": row.view_definition,
-                    "columns": [],
+                    "columns": columns_map.get(object_id, []),
                 }
                 count += 1
 
