@@ -41,6 +41,14 @@ except ImportError:
     HAS_AST_PARSER = False
     print("Warning: script_parser not found. View parsing will be limited.")
 
+# Import column lineage parser
+try:
+    from column_lineage_parser import ColumnLineageExtractor, SchemaContext
+    HAS_COLUMN_LINEAGE = True
+except ImportError:
+    HAS_COLUMN_LINEAGE = False
+    print("Warning: column_lineage_parser not found. Column-level lineage will be limited.")
+
 
 class BigQueryLineageExtractor:
     """
@@ -57,6 +65,7 @@ class BigQueryLineageExtractor:
         self.client: Optional[bigquery.Client] = None
         self.objects: Dict[str, dict] = {}
         self.table_deps: List[dict] = []
+        self.column_deps: List[dict] = []
         self.object_counter = 200000  # Start at 200000 to avoid collision with Exasol IDs
         self.projects_extracted: List[str] = []
 
@@ -171,6 +180,10 @@ class BigQueryLineageExtractor:
         # Extract Composer DAGs if configured
         if extraction_config.get("composer_dags", {}).get("enabled", False):
             self._extract_composer_dags()
+
+        # Extract column-level lineage if enabled
+        if extraction_config.get("extract_column_lineage", False):
+            self._extract_column_lineage()
 
         return self._build_cache()
 
@@ -580,6 +593,76 @@ class BigQueryLineageExtractor:
         print(f"  GCS-based DAG extraction from {bucket_name} not yet implemented.")
         print("  Consider using the metadata_table approach instead.")
 
+    def _extract_column_lineage(self) -> None:
+        """
+        Extract column-level lineage by parsing view and procedure definitions.
+        Uses the sqlglot-based column lineage parser.
+        """
+        print("\nExtracting column-level lineage...")
+
+        if not HAS_COLUMN_LINEAGE:
+            print("  Column lineage parser not available. Skipping.")
+            return
+
+        # Build schema context from existing column metadata
+        schema_context = self._build_schema_context()
+
+        # Create the column lineage extractor
+        extractor = ColumnLineageExtractor(dialect="bigquery")
+
+        # Process views and procedures
+        objects_with_definitions = [
+            obj for obj in self.objects.values()
+            if obj.get("definition") and obj.get("type") in (
+                "BIGQUERY_VIEW", "BIGQUERY_PROCEDURE", "BIGQUERY_UDF"
+            )
+        ]
+
+        column_deps_count = 0
+        objects_processed = 0
+
+        for obj in objects_with_definitions:
+            definition = obj.get("definition", "")
+            if not definition:
+                continue
+
+            obj_id = obj["id"]
+
+            try:
+                # Extract column lineage using the parser
+                deps = extractor.extract_column_lineage(
+                    definition, obj_id, schema_context
+                )
+
+                for dep in deps:
+                    self.column_deps.append({
+                        "source_object_id": dep.source_object_id,
+                        "source_column": dep.source_column,
+                        "target_object_id": dep.target_object_id,
+                        "target_column": dep.target_column,
+                        "transformation": dep.transformation,
+                        "transformation_type": dep.transformation_type,
+                    })
+                    column_deps_count += 1
+
+                objects_processed += 1
+
+            except Exception as e:
+                print(f"  Warning: Failed to parse {obj_id}: {e}")
+
+        print(f"  Processed {objects_processed} objects, found {column_deps_count} column-level dependencies")
+
+    def _build_schema_context(self) -> "SchemaContext":
+        """Build schema context from extracted column metadata."""
+        object_columns: Dict[str, List[str]] = {}
+
+        for obj_id, obj in self.objects.items():
+            columns = obj.get("columns", [])
+            if columns:
+                object_columns[obj_id] = [col["name"] for col in columns]
+
+        return SchemaContext(object_columns=object_columns)
+
     def _build_cache(self) -> dict:
         """Build the final cache structure."""
         return {
@@ -590,11 +673,12 @@ class BigQueryLineageExtractor:
                 "extractor_version": "1.0.0",
                 "object_count": len(self.objects),
                 "dependency_count": len(self.table_deps),
+                "column_dependency_count": len(self.column_deps),
             },
             "objects": self.objects,
             "dependencies": {
                 "table_level": self.table_deps,
-                "column_level": [],  # Not implemented for BigQuery yet
+                "column_level": self.column_deps,
             },
         }
 

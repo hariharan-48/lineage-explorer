@@ -82,3 +82,24 @@ class TableLevelDependency(BaseModel):
     target_id: str
     dependency_type: str = "DATA"  # VIEW, ETL, CONNECTION, UDF_INPUT, UDF_OUTPUT, CONSTRAINT, DATA
     reference_type: str = "SELECT"  # SELECT, INSERT_SELECT, USES, PARAMETER, INSERT
+
+
+class TransformationType(str, Enum):
+    """Types of column transformations."""
+    DIRECT = "DIRECT"           # Direct column reference (no transformation)
+    AGGREGATE = "AGGREGATE"     # SUM, COUNT, AVG, MIN, MAX, etc.
+    EXPRESSION = "EXPRESSION"   # Mathematical or string operations
+    CASE = "CASE"               # CASE WHEN expressions
+    CAST = "CAST"               # Type casting
+    FUNCTION = "FUNCTION"       # Function call (COALESCE, NVL, etc.)
+    UNKNOWN = "UNKNOWN"         # Unable to determine transformation
+
+
+class ColumnLevelDependency(BaseModel):
+    """Represents a column-level dependency between database objects."""
+    source_object_id: str       # "SCHEMA.TABLE" or "bigquery:project.dataset.table"
+    source_column: str          # Column name in source object
+    target_object_id: str       # "SCHEMA.VIEW" or target object
+    target_column: str          # Column name in target object
+    transformation: Optional[str] = None  # e.g., "SUM(amount)", "CAST(x AS INT)"
+    transformation_type: TransformationType = TransformationType.DIRECT

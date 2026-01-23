@@ -1,5 +1,5 @@
 import { useGraphStore } from '../../store/graphStore';
-import type { DatabaseObject } from '../../types/lineage';
+import type { DatabaseObject, ColumnLineageResponse } from '../../types/lineage';
 import './ObjectDetails.css';
 
 const typeColors: Record<string, string> = {
@@ -11,10 +11,19 @@ const typeColors: Record<string, string> = {
 };
 
 export function ObjectDetails() {
-  const { nodes, selectedNodeId } = useGraphStore();
+  const { nodes, selectedNodeId, selectedColumn, columnLineageCache, showColumnLineage } = useGraphStore();
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
   const object = selectedNode?.data?.object as DatabaseObject | undefined;
+
+  // Get column lineage data for selected column
+  let columnLineage: ColumnLineageResponse | null = null;
+  if (selectedColumn && columnLineageCache.has(selectedColumn.objectId)) {
+    const objLineage = columnLineageCache.get(selectedColumn.objectId);
+    if (objLineage && objLineage.column_lineage[selectedColumn.column]) {
+      columnLineage = objLineage.column_lineage[selectedColumn.column];
+    }
+  }
 
   if (!object) {
     return (
@@ -107,6 +116,50 @@ export function ObjectDetails() {
         <div className="detail-section">
           <h3 className="section-title">Definition</h3>
           <pre className="definition-code">{object.definition}</pre>
+        </div>
+      )}
+
+      {/* Column lineage section */}
+      {showColumnLineage && selectedColumn && columnLineage && (
+        <div className="detail-section">
+          <h3 className="section-title">Column Lineage</h3>
+          <div className="column-lineage-info">
+            <div className="column-lineage-header">
+              <span className="column-lineage-name">{selectedColumn.column}</span>
+            </div>
+
+            {columnLineage.source_columns.length > 0 && (
+              <div className="column-lineage-group">
+                <div className="group-label">Source Columns:</div>
+                {columnLineage.source_columns.map((src, idx) => (
+                  <div key={idx} className="column-lineage-item source">
+                    <span className="source-object">{src.object_id}</span>
+                    <span className="source-column">.{src.column}</span>
+                    {src.transformation && (
+                      <span className="transformation">{src.transformation}</span>
+                    )}
+                    {src.transformation_type !== 'DIRECT' && (
+                      <span className={`transform-type ${src.transformation_type.toLowerCase()}`}>
+                        {src.transformation_type}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {columnLineage.target_columns.length > 0 && (
+              <div className="column-lineage-group">
+                <div className="group-label">Target Columns:</div>
+                {columnLineage.target_columns.map((tgt, idx) => (
+                  <div key={idx} className="column-lineage-item target">
+                    <span className="target-object">{tgt.object_id}</span>
+                    <span className="target-column">.{tgt.column}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

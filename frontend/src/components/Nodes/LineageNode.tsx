@@ -1,7 +1,8 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useState, useEffect } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import type { LineageNodeData } from '../../store/graphStore';
 import { useGraphStore } from '../../store/graphStore';
+import type { ObjectColumnLineageResponse } from '../../types/lineage';
 import './LineageNode.css';
 
 const typeColors: Record<string, string> = {
@@ -72,8 +73,27 @@ export const LineageNode = memo(({ data, id, selected }: NodeProps) => {
     highlightPath,
     clearHighlight,
     highlightedNodeIds,
-    isLoading
+    isLoading,
+    showColumnLineage,
+    expandedColumns,
+    columnLineageCache,
+    toggleColumnExpansion,
+    selectColumn,
+    selectedColumn,
   } = useGraphStore();
+
+  const [isColumnsExpanded, setIsColumnsExpanded] = useState(false);
+  const [columnData, setColumnData] = useState<ObjectColumnLineageResponse | null>(null);
+
+  // Check if this node's columns are expanded
+  useEffect(() => {
+    const expanded = expandedColumns.has(id);
+    setIsColumnsExpanded(expanded);
+
+    if (expanded && columnLineageCache.has(id)) {
+      setColumnData(columnLineageCache.get(id)!);
+    }
+  }, [id, expandedColumns, columnLineageCache]);
 
   const isHighlighted = highlightedNodeIds.has(id);
   const hasHighlight = highlightedNodeIds.size > 0;
@@ -132,8 +152,28 @@ export const LineageNode = memo(({ data, id, selected }: NodeProps) => {
     [id, highlightPath, clearHighlight, isHighlighted, highlightedNodeIds.size]
   );
 
+  const handleToggleColumns = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      toggleColumnExpansion(id);
+    },
+    [id, toggleColumnExpansion]
+  );
+
+  const handleColumnClick = useCallback(
+    (columnName: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      selectColumn(id, columnName);
+    },
+    [id, selectColumn]
+  );
+
   const color = typeColors[object.type] || '#64748b';
   const icon = typeIcons[object.type] || '📄';
+
+  // Get column count from object metadata
+  const columnCount = object.columns?.length ?? 0;
+  const hasColumns = columnCount > 0;
 
   // Show + button if has more to expand, show - button if already expanded
   const showUpstreamExpandButton = hasUpstream && !isExpanded.upstream;
@@ -198,6 +238,58 @@ export const LineageNode = memo(({ data, id, selected }: NodeProps) => {
         <div className="object-name">{object.name}</div>
         {object.row_count !== undefined && object.row_count !== null && (
           <div className="row-count">{formatNumber(object.row_count)} rows</div>
+        )}
+
+        {/* Column lineage section */}
+        {showColumnLineage && hasColumns && (
+          <div className="column-section">
+            <button
+              className="column-toggle-btn"
+              onClick={handleToggleColumns}
+              title={isColumnsExpanded ? 'Hide columns' : 'Show column lineage'}
+            >
+              <span className="column-icon">📋</span>
+              <span className="column-count">{columnCount} columns</span>
+              <span className="column-arrow">{isColumnsExpanded ? '▼' : '▶'}</span>
+            </button>
+
+            {isColumnsExpanded && columnData && (
+              <div className="column-list">
+                {columnData.columns_with_lineage.slice(0, 20).map((colName) => {
+                  const colLineage = columnData.column_lineage[colName];
+                  const isSelected = selectedColumn?.objectId === id && selectedColumn?.column === colName;
+                  const hasSource = colLineage?.source_columns?.length > 0;
+                  const hasTarget = colLineage?.target_columns?.length > 0;
+
+                  return (
+                    <div
+                      key={colName}
+                      className={`column-item ${isSelected ? 'selected' : ''}`}
+                      onClick={(e) => handleColumnClick(colName, e)}
+                      title={colLineage?.source_columns?.[0]?.transformation || 'Direct mapping'}
+                    >
+                      <span className={`column-direction ${hasSource ? 'has-source' : ''} ${hasTarget ? 'has-target' : ''}`}>
+                        {hasSource && '←'}
+                        {hasTarget && '→'}
+                      </span>
+                      <span className="column-name">{colName}</span>
+                      {colLineage?.source_columns?.[0]?.transformation_type &&
+                       colLineage.source_columns[0].transformation_type !== 'DIRECT' && (
+                        <span className={`transformation-badge ${colLineage.source_columns[0].transformation_type.toLowerCase()}`}>
+                          {colLineage.source_columns[0].transformation_type.charAt(0)}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+                {columnData.columns_with_lineage.length > 20 && (
+                  <div className="column-item more">
+                    +{columnData.columns_with_lineage.length - 20} more
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </div>
 

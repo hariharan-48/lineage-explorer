@@ -42,6 +42,14 @@ except ImportError:
     HAS_AST_PARSER = False
     print("Warning: script_parser not found. Script parsing will be limited.")
 
+# Import column lineage parser
+try:
+    from column_lineage_parser import ColumnLineageExtractor, SchemaContext
+    HAS_COLUMN_LINEAGE = True
+except ImportError:
+    HAS_COLUMN_LINEAGE = False
+    print("Warning: column_lineage_parser not found. Column-level lineage will be limited.")
+
 
 class ExasolLineageExtractor:
     """
@@ -826,11 +834,73 @@ class ExasolLineageExtractor:
 
     def _extract_column_lineage(self) -> None:
         """
-        Extract column-level lineage by parsing view definitions.
-        This is a simplified parser - production use may need more sophisticated SQL parsing.
+        Extract column-level lineage by parsing view definitions using sqlglot.
+        This uses AST-based parsing for accurate column tracing.
         """
         print("Extracting column-level lineage...")
 
+        if not HAS_COLUMN_LINEAGE:
+            print("  Column lineage parser not available. Using fallback method.")
+            self._extract_column_lineage_fallback()
+            return
+
+        # Build schema context from existing column metadata
+        schema_context = self._build_schema_context()
+
+        # Create the column lineage extractor
+        extractor = ColumnLineageExtractor(dialect="exasol")
+
+        views = [o for o in self.objects.values() if o["type"] == "VIEW"]
+        column_deps_count = 0
+        views_processed = 0
+
+        for view in views:
+            definition = view.get("definition", "")
+            if not definition:
+                continue
+
+            view_id = view["id"]
+
+            try:
+                # Extract column lineage using the parser
+                deps = extractor.extract_column_lineage(
+                    definition, view_id, schema_context
+                )
+
+                for dep in deps:
+                    self.column_deps.append({
+                        "source_object_id": dep.source_object_id,
+                        "source_column": dep.source_column,
+                        "target_object_id": dep.target_object_id,
+                        "target_column": dep.target_column,
+                        "transformation": dep.transformation,
+                        "transformation_type": dep.transformation_type,
+                    })
+                    column_deps_count += 1
+
+                views_processed += 1
+
+            except Exception as e:
+                print(f"  Warning: Failed to parse view {view_id}: {e}")
+
+        print(f"  Processed {views_processed} views, found {column_deps_count} column-level dependencies")
+
+    def _build_schema_context(self) -> "SchemaContext":
+        """Build schema context from extracted column metadata."""
+        object_columns: Dict[str, List[str]] = {}
+
+        for obj_id, obj in self.objects.items():
+            columns = obj.get("columns", [])
+            if columns:
+                object_columns[obj_id] = [col["name"] for col in columns]
+
+        return SchemaContext(object_columns=object_columns)
+
+    def _extract_column_lineage_fallback(self) -> None:
+        """
+        Fallback column lineage extraction when parser is not available.
+        Uses simple name matching between source and target columns.
+        """
         views = [o for o in self.objects.values() if o["type"] == "VIEW"]
         column_deps_count = 0
 
@@ -871,10 +941,11 @@ class ExasolLineageExtractor:
                                 "target_object_id": view_id,
                                 "target_column": view_col["name"],
                                 "transformation": None,
+                                "transformation_type": "UNKNOWN",
                             })
                             column_deps_count += 1
 
-        print(f"  Found {column_deps_count} column-level dependencies")
+        print(f"  Found {column_deps_count} column-level dependencies (fallback method)")
 
     def _next_id(self) -> int:
         """Generate unique object ID."""

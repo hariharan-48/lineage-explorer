@@ -9,7 +9,16 @@ from dataclasses import dataclass
 from app.models.domain import (
     DatabaseObject,
     TableLevelDependency,
+    ColumnLevelDependency,
 )
+
+
+@dataclass
+class ColumnLineageResult:
+    """Result of a column lineage traversal."""
+    column_deps: List[ColumnLevelDependency]
+    source_columns: List[Dict[str, Any]]  # [{"object_id": "...", "column": "...", "transformation": "..."}]
+    target_columns: List[Dict[str, Any]]  # [{"object_id": "...", "column": "..."}]
 
 
 @dataclass
@@ -44,6 +53,16 @@ class LineageGraphEngine:
 
         # Edge lookup map
         self._edge_map: Dict[tuple, TableLevelDependency] = {}
+
+        # Column-level lineage data structures
+        self._column_deps: List[ColumnLevelDependency] = []
+        # Key format: "object_id:column_name" -> Set["object_id:column_name"]
+        self._column_forward_edges: Dict[str, Set[str]] = {}  # source col -> target cols
+        self._column_backward_edges: Dict[str, Set[str]] = {}  # target col -> source cols
+        # Key: (source_obj:col, target_obj:col) -> ColumnLevelDependency
+        self._column_edge_map: Dict[tuple, ColumnLevelDependency] = {}
+        # Index: object_id -> list of column names that have lineage
+        self._columns_with_lineage: Dict[str, Set[str]] = {}
 
     def load_cache(self, cache_data: dict) -> None:
         """
@@ -90,6 +109,37 @@ class LineageGraphEngine:
 
             # Edge lookup
             self._edge_map[(source, target)] = dep
+
+        # Build column-level adjacency lists
+        for col_dep_data in deps.get("column_level", []):
+            col_dep = ColumnLevelDependency(**col_dep_data)
+            self._column_deps.append(col_dep)
+
+            # Create keys in format "object_id:column_name"
+            source_key = f"{col_dep.source_object_id}:{col_dep.source_column}"
+            target_key = f"{col_dep.target_object_id}:{col_dep.target_column}"
+
+            # Forward: source column -> target columns
+            if source_key not in self._column_forward_edges:
+                self._column_forward_edges[source_key] = set()
+            self._column_forward_edges[source_key].add(target_key)
+
+            # Backward: target column -> source columns
+            if target_key not in self._column_backward_edges:
+                self._column_backward_edges[target_key] = set()
+            self._column_backward_edges[target_key].add(source_key)
+
+            # Edge lookup
+            self._column_edge_map[(source_key, target_key)] = col_dep
+
+            # Track which columns have lineage for each object
+            if col_dep.source_object_id not in self._columns_with_lineage:
+                self._columns_with_lineage[col_dep.source_object_id] = set()
+            self._columns_with_lineage[col_dep.source_object_id].add(col_dep.source_column)
+
+            if col_dep.target_object_id not in self._columns_with_lineage:
+                self._columns_with_lineage[col_dep.target_object_id] = set()
+            self._columns_with_lineage[col_dep.target_object_id].add(col_dep.target_column)
 
     def get_object(self, object_id: str) -> Optional[DatabaseObject]:
         """Get a single object by ID."""
@@ -300,6 +350,8 @@ class LineageGraphEngine:
         return {
             "total_objects": len(self._objects),
             "total_dependencies": len(self._table_deps),
+            "total_column_dependencies": len(self._column_deps),
+            "objects_with_column_lineage": len(self._columns_with_lineage),
             "schemas": len(self._by_schema),
             "tables": len(self._by_type.get("TABLE", set())),
             "views": len(self._by_type.get("VIEW", set())),
@@ -339,3 +391,173 @@ class LineageGraphEngine:
         items = [self._objects[oid] for oid in candidates[start:end]]
 
         return items, total
+
+    # ========== Column-Level Lineage Methods ==========
+
+    def get_column_lineage(
+        self,
+        object_id: str,
+        column_name: str,
+        direction: str = "both",
+        depth: int = 3,
+    ) -> ColumnLineageResult:
+        """
+        Get column-level lineage for a specific column.
+
+        Args:
+            object_id: Object ID (e.g., "DWH.MY_TABLE")
+            column_name: Column name
+            direction: "upstream" (sources), "downstream" (targets), or "both"
+            depth: How many levels to traverse
+
+        Returns:
+            ColumnLineageResult with dependencies and column lists
+        """
+        column_key = f"{object_id}:{column_name}"
+        column_deps: List[ColumnLevelDependency] = []
+        source_columns: List[Dict[str, Any]] = []
+        target_columns: List[Dict[str, Any]] = []
+
+        visited = set()
+
+        if direction in ("upstream", "both"):
+            # Traverse backward (find source columns)
+            upstream_cols = self._traverse_column_lineage(
+                column_key, depth, "backward", visited.copy()
+            )
+            for src_key, dep in upstream_cols:
+                if dep:
+                    column_deps.append(dep)
+                    parts = src_key.split(":", 1)
+                    source_columns.append({
+                        "object_id": parts[0],
+                        "column": parts[1] if len(parts) > 1 else "",
+                        "transformation": dep.transformation,
+                        "transformation_type": dep.transformation_type.value if hasattr(dep.transformation_type, 'value') else str(dep.transformation_type),
+                    })
+
+        if direction in ("downstream", "both"):
+            # Traverse forward (find target columns)
+            downstream_cols = self._traverse_column_lineage(
+                column_key, depth, "forward", visited.copy()
+            )
+            for tgt_key, dep in downstream_cols:
+                if dep:
+                    column_deps.append(dep)
+                    parts = tgt_key.split(":", 1)
+                    target_columns.append({
+                        "object_id": parts[0],
+                        "column": parts[1] if len(parts) > 1 else "",
+                    })
+
+        return ColumnLineageResult(
+            column_deps=column_deps,
+            source_columns=source_columns,
+            target_columns=target_columns,
+        )
+
+    def _traverse_column_lineage(
+        self,
+        start_key: str,
+        depth: int,
+        direction: str,
+        visited: Set[str],
+    ) -> List[tuple]:
+        """
+        BFS traversal of column lineage.
+
+        Returns list of (column_key, ColumnLevelDependency) tuples.
+        """
+        edges_map = (
+            self._column_forward_edges if direction == "forward"
+            else self._column_backward_edges
+        )
+
+        results: List[tuple] = []
+        queue: deque = deque([(start_key, 0)])
+        visited.add(start_key)
+
+        while queue:
+            current_key, current_depth = queue.popleft()
+
+            if current_depth >= depth:
+                continue
+
+            neighbors = edges_map.get(current_key, set())
+            for neighbor_key in neighbors:
+                if neighbor_key in visited:
+                    continue
+
+                visited.add(neighbor_key)
+
+                # Get the edge dependency
+                if direction == "forward":
+                    edge_key = (current_key, neighbor_key)
+                else:
+                    edge_key = (neighbor_key, current_key)
+
+                dep = self._column_edge_map.get(edge_key)
+                results.append((neighbor_key, dep))
+                queue.append((neighbor_key, current_depth + 1))
+
+        return results
+
+    def get_object_column_lineage(
+        self,
+        object_id: str,
+    ) -> Dict[str, ColumnLineageResult]:
+        """
+        Get column lineage for all columns of an object.
+
+        Args:
+            object_id: Object ID
+
+        Returns:
+            Dict mapping column names to their ColumnLineageResult
+        """
+        results: Dict[str, ColumnLineageResult] = {}
+
+        # Get columns that have lineage for this object
+        columns = self._columns_with_lineage.get(object_id, set())
+
+        for column_name in columns:
+            results[column_name] = self.get_column_lineage(
+                object_id, column_name, direction="both", depth=1
+            )
+
+        return results
+
+    def get_column_dependencies_for_object(
+        self,
+        object_id: str,
+    ) -> List[ColumnLevelDependency]:
+        """
+        Get all column dependencies where this object is either source or target.
+
+        Args:
+            object_id: Object ID
+
+        Returns:
+            List of ColumnLevelDependency objects
+        """
+        deps = []
+        for dep in self._column_deps:
+            if dep.source_object_id == object_id or dep.target_object_id == object_id:
+                deps.append(dep)
+        return deps
+
+    def get_columns_with_lineage(self, object_id: str) -> List[str]:
+        """
+        Get list of column names that have lineage data for an object.
+
+        Args:
+            object_id: Object ID
+
+        Returns:
+            List of column names
+        """
+        return sorted(self._columns_with_lineage.get(object_id, set()))
+
+    def has_column_lineage(self, object_id: str) -> bool:
+        """Check if an object has any column-level lineage data."""
+        return object_id in self._columns_with_lineage and len(self._columns_with_lineage[object_id]) > 0

@@ -69,10 +69,18 @@ def fetch_sync_metadata(project: str, dataset: str, table: str) -> list[dict]:
     return results
 
 
-def build_lineage_from_sync(sync_records: list[dict]) -> dict:
-    """Build lineage objects and dependencies from sync metadata."""
+def build_lineage_from_sync(sync_records: list[dict], column_mappings: dict = None) -> dict:
+    """
+    Build lineage objects and dependencies from sync metadata.
+
+    Args:
+        sync_records: List of sync metadata records
+        column_mappings: Optional dict mapping "bq_table" -> {"bq_col": "exasol_col", ...}
+                        If not provided, assumes 1:1 column name mapping
+    """
     objects = {}
     dependencies = []
+    column_deps = []
 
     for record in sync_records:
         # Skip if missing required fields
@@ -162,6 +170,18 @@ def build_lineage_from_sync(sync_records: list[dict]) -> dict:
                 "reference_type": "SYNC_TO_EXASOL",
             })
 
+            # Add column-level mappings if available
+            if column_mappings and bq_full_name in column_mappings:
+                for bq_col, exa_col in column_mappings[bq_full_name].items():
+                    column_deps.append({
+                        "source_object_id": bq_id,
+                        "source_column": bq_col,
+                        "target_object_id": exa_stg_id,
+                        "target_column": exa_col,
+                        "transformation": None,
+                        "transformation_type": "DIRECT",
+                    })
+
         # Build Exasol DM object (if exists)
         exa_dm_schema = record.get("exa_dm_schema_name", "")
         exa_dm_table = record.get("exa_dm_table_name", "")
@@ -204,9 +224,13 @@ def build_lineage_from_sync(sync_records: list[dict]) -> dict:
             "source": "bq_exasol_bridge",
             "extracted_at": datetime.now().isoformat(),
             "record_count": len(sync_records),
+            "column_dependency_count": len(column_deps),
         },
         "objects": list(objects.values()),
-        "dependencies": dependencies,
+        "dependencies": {
+            "table_level": dependencies,
+            "column_level": column_deps,
+        },
     }
 
 
@@ -230,16 +254,28 @@ def merge_into_cache(base_path: str, new_data: dict) -> dict:
 
     base["objects"] = base_objects
 
+    # Handle new_data dependencies structure (could be dict or list)
+    new_deps = new_data.get("dependencies", {})
+    if isinstance(new_deps, dict):
+        new_table_deps = new_deps.get("table_level", [])
+        new_column_deps = new_deps.get("column_level", [])
+    else:
+        new_table_deps = new_deps if isinstance(new_deps, list) else []
+        new_column_deps = []
+
     # Get base dependencies list
-    base_deps = base.get("dependencies", [])
-    if isinstance(base_deps, dict) and "table_level" in base_deps:
-        base_deps_list = base_deps["table_level"]
+    base_deps = base.get("dependencies", {})
+    if isinstance(base_deps, dict):
+        base_deps_list = base_deps.get("table_level", [])
+        base_column_deps_list = base_deps.get("column_level", [])
     elif isinstance(base_deps, list):
         base_deps_list = base_deps
+        base_column_deps_list = []
     else:
         base_deps_list = []
+        base_column_deps_list = []
 
-    # Build existing deps set
+    # Build existing deps set for table-level
     existing_deps = set()
     for dep in base_deps_list:
         source = dep.get("source_id") or dep.get("source_object_id")
@@ -247,9 +283,9 @@ def merge_into_cache(base_path: str, new_data: dict) -> dict:
         if source and target:
             existing_deps.add((source, target))
 
-    # Add new dependencies
+    # Add new table-level dependencies
     added_deps = 0
-    for dep in new_data["dependencies"]:
+    for dep in new_table_deps:
         source = dep.get("source_id") or dep.get("source_object_id")
         target = dep.get("target_id") or dep.get("target_object_id")
         if source and target and (source, target) not in existing_deps:
@@ -257,20 +293,46 @@ def merge_into_cache(base_path: str, new_data: dict) -> dict:
             existing_deps.add((source, target))
             added_deps += 1
 
+    # Build existing column deps set
+    existing_column_deps = set()
+    for dep in base_column_deps_list:
+        key = (
+            dep.get("source_object_id", ""),
+            dep.get("source_column", ""),
+            dep.get("target_object_id", ""),
+            dep.get("target_column", ""),
+        )
+        existing_column_deps.add(key)
+
+    # Add new column-level dependencies
+    added_column_deps = 0
+    for dep in new_column_deps:
+        key = (
+            dep.get("source_object_id", ""),
+            dep.get("source_column", ""),
+            dep.get("target_object_id", ""),
+            dep.get("target_column", ""),
+        )
+        if key not in existing_column_deps:
+            base_column_deps_list.append(dep)
+            existing_column_deps.add(key)
+            added_column_deps += 1
+
     # Update dependencies in original structure
-    if isinstance(base.get("dependencies"), dict) and "table_level" in base.get("dependencies", {}):
-        base["dependencies"]["table_level"] = base_deps_list
-    else:
-        base["dependencies"] = base_deps_list
+    base["dependencies"] = {
+        "table_level": base_deps_list,
+        "column_level": base_column_deps_list,
+    }
 
     # Update metadata
     base["metadata"]["bridge_merged_at"] = datetime.now().isoformat()
     base["metadata"]["bridge_stats"] = {
         "objects_added": added_objects,
         "dependencies_added": added_deps,
+        "column_dependencies_added": added_column_deps,
     }
 
-    logger.info(f"Merged: +{added_objects} objects, +{added_deps} dependencies")
+    logger.info(f"Merged: +{added_objects} objects, +{added_deps} table deps, +{added_column_deps} column deps")
 
     return base
 

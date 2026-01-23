@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Node, Edge } from '@xyflow/react';
 import { api } from '../services/api';
-import type { DatabaseObject, LineageResponse } from '../types/lineage';
+import type { DatabaseObject, LineageResponse, ObjectColumnLineageResponse } from '../types/lineage';
 
 export interface LineageNodeData extends Record<string, unknown> {
   object: DatabaseObject;
@@ -35,6 +35,12 @@ interface GraphState {
   highlightedNodeIds: Set<string>;
   highlightedEdgeIds: Set<string>;
 
+  // Column lineage state
+  showColumnLineage: boolean;
+  expandedColumns: Map<string, Set<string>>; // objectId -> Set of expanded column names
+  columnLineageCache: Map<string, ObjectColumnLineageResponse>; // objectId -> column lineage data
+  selectedColumn: { objectId: string; column: string } | null;
+
   // Loading states
   isLoading: boolean;
   error: string | null;
@@ -53,6 +59,13 @@ interface GraphState {
   setNodes: (nodes: LineageNode[]) => void;
   setEdges: (edges: Edge[]) => void;
   reset: () => void;
+
+  // Column lineage actions
+  setShowColumnLineage: (show: boolean) => void;
+  toggleColumnExpansion: (objectId: string) => Promise<void>;
+  loadColumnLineage: (objectId: string) => Promise<ObjectColumnLineageResponse | null>;
+  selectColumn: (objectId: string, column: string) => void;
+  clearSelectedColumn: () => void;
 }
 
 const transformToReactFlow = (
@@ -114,6 +127,11 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   theme: 'light',
   highlightedNodeIds: new Set(),
   highlightedEdgeIds: new Set(),
+  // Column lineage state
+  showColumnLineage: false,
+  expandedColumns: new Map(),
+  columnLineageCache: new Map(),
+  selectedColumn: null,
   isLoading: false,
   error: null,
 
@@ -364,6 +382,59 @@ export const useGraphStore = create<GraphState>((set, get) => ({
 
   setNodes: (nodes) => set({ nodes }),
   setEdges: (edges) => set({ edges }),
+
+  // Column lineage actions
+  setShowColumnLineage: (show) => set({ showColumnLineage: show }),
+
+  toggleColumnExpansion: async (objectId) => {
+    const { expandedColumns, columnLineageCache } = get();
+    const newExpandedColumns = new Map(expandedColumns);
+
+    if (newExpandedColumns.has(objectId)) {
+      // Collapse - remove from expanded
+      newExpandedColumns.delete(objectId);
+    } else {
+      // Expand - load column lineage if not cached
+      let data: ObjectColumnLineageResponse | null | undefined = columnLineageCache.get(objectId);
+      if (!data) {
+        data = await get().loadColumnLineage(objectId);
+      }
+      if (data && data.has_column_lineage) {
+        newExpandedColumns.set(objectId, new Set(data.columns_with_lineage));
+      }
+    }
+
+    set({ expandedColumns: newExpandedColumns });
+  },
+
+  loadColumnLineage: async (objectId) => {
+    const { columnLineageCache } = get();
+
+    // Return from cache if available
+    if (columnLineageCache.has(objectId)) {
+      return columnLineageCache.get(objectId) ?? null;
+    }
+
+    try {
+      const data = await api.getObjectColumnLineage(objectId);
+      const newCache = new Map(columnLineageCache);
+      newCache.set(objectId, data);
+      set({ columnLineageCache: newCache });
+      return data;
+    } catch (error) {
+      console.error(`Failed to load column lineage for ${objectId}:`, error);
+      return null;
+    }
+  },
+
+  selectColumn: (objectId, column) => {
+    set({ selectedColumn: { objectId, column } });
+  },
+
+  clearSelectedColumn: () => {
+    set({ selectedColumn: null });
+  },
+
   reset: () =>
     set({
       nodes: [],
@@ -373,6 +444,10 @@ export const useGraphStore = create<GraphState>((set, get) => ({
       expandedNodes: new Map(),
       highlightedNodeIds: new Set(),
       highlightedEdgeIds: new Set(),
+      showColumnLineage: false,
+      expandedColumns: new Map(),
+      columnLineageCache: new Map(),
+      selectedColumn: null,
       error: null,
     }),
 }));

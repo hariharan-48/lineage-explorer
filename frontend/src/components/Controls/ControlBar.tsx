@@ -15,6 +15,8 @@ export function ControlBar() {
     nodes,
     edges,
     isLoading,
+    showColumnLineage,
+    setShowColumnLineage,
   } = useGraphStore();
 
   const exportToExcel = useCallback(() => {
@@ -140,6 +142,15 @@ export function ControlBar() {
           isRight={layoutDirection === 'TB'}
           onChange={(isRight) => setLayoutDirection(isRight ? 'TB' : 'LR')}
           disabled={layoutType === 'force'}
+        />
+      </div>
+
+      <div className="control-group" title="Toggle column-level lineage visibility">
+        <ToggleSwitch
+          leftLabel="Table"
+          rightLabel="Column"
+          isRight={showColumnLineage}
+          onChange={(isRight) => setShowColumnLineage(isRight)}
         />
       </div>
 

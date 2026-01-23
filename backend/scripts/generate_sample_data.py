@@ -522,7 +522,7 @@ class SampleDataGenerator:
         return columns
 
     def _add_column_deps(self, source_id: str, target_id: str):
-        """Add column-level dependencies between two objects."""
+        """Add column-level dependencies between two objects with realistic transformations."""
         source_obj = self.objects.get(source_id)
         target_obj = self.objects.get(target_id)
 
@@ -535,20 +535,64 @@ class SampleDataGenerator:
         if not source_cols or not target_cols:
             return
 
-        # Create some column mappings
-        num_mappings = min(len(source_cols), len(target_cols), random.randint(2, 5))
-        transformations = [None, "CAST", "COALESCE", "TRIM", "UPPER", "SUM", "COUNT", "AVG", "MAX", "MIN"]
+        # Create column mappings with different transformation types
+        num_mappings = min(len(source_cols), len(target_cols), random.randint(3, 8))
 
+        # Transformations by type
+        transformation_configs = [
+            # (transformation_type, sql_pattern, weight)
+            ("DIRECT", None, 40),  # Direct mapping - most common
+            ("AGGREGATE", "SUM({col})", 10),
+            ("AGGREGATE", "COUNT({col})", 8),
+            ("AGGREGATE", "AVG({col})", 5),
+            ("AGGREGATE", "MAX({col})", 4),
+            ("AGGREGATE", "MIN({col})", 3),
+            ("CAST", "CAST({col} AS VARCHAR)", 8),
+            ("CAST", "CAST({col} AS DATE)", 5),
+            ("CAST", "CAST({col} AS DECIMAL(15,2))", 3),
+            ("FUNCTION", "COALESCE({col}, 0)", 6),
+            ("FUNCTION", "NVL({col}, '')", 4),
+            ("FUNCTION", "UPPER({col})", 5),
+            ("FUNCTION", "TRIM({col})", 4),
+            ("FUNCTION", "CONCAT(prefix_, {col})", 2),
+            ("EXPRESSION", "{col} * 100", 5),
+            ("EXPRESSION", "{col} + 1", 3),
+            ("EXPRESSION", "{col} || ' ' || other_col", 2),
+            ("CASE", "CASE WHEN {col} > 0 THEN 'POSITIVE' ELSE 'NEGATIVE' END", 4),
+            ("CASE", "CASE WHEN {col} IS NULL THEN 'N/A' ELSE {col} END", 3),
+        ]
+
+        # Build weighted list for random selection
+        weighted_transforms = []
+        for trans_type, sql_pattern, weight in transformation_configs:
+            weighted_transforms.extend([(trans_type, sql_pattern)] * weight)
+
+        used_pairs = set()
         for _ in range(num_mappings):
             src_col = random.choice(source_cols)
             tgt_col = random.choice(target_cols)
+
+            # Avoid duplicate column pairs
+            pair_key = (src_col["name"], tgt_col["name"])
+            if pair_key in used_pairs:
+                continue
+            used_pairs.add(pair_key)
+
+            trans_type, sql_pattern = random.choice(weighted_transforms)
+
+            # Generate transformation SQL
+            if sql_pattern:
+                transformation = sql_pattern.format(col=src_col["name"])
+            else:
+                transformation = None
 
             self.column_deps.append({
                 "source_object_id": source_id,
                 "source_column": src_col["name"],
                 "target_object_id": target_id,
                 "target_column": tgt_col["name"],
-                "transformation": random.choice(transformations)
+                "transformation": transformation,
+                "transformation_type": trans_type,
             })
 
     def _next_id(self) -> int:

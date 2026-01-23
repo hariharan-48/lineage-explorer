@@ -235,3 +235,163 @@
   background: rgba(15, 23, 42, 0.8);
   border: 1px solid rgba(148, 163, 184, 0.1);
 }
+
+/* Column lineage styles */
+.column-lineage-info {
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  padding: 12px;
+}
+
+.column-lineage-header {
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.column-lineage-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  font-family: 'Monaco', 'Menlo', monospace;
+}
+
+.column-lineage-group {
+  margin-bottom: 12px;
+}
+
+.column-lineage-group:last-child {
+  margin-bottom: 0;
+}
+
+.group-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.column-lineage-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  background: white;
+  border-radius: 4px;
+  border-left: 3px solid;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.column-lineage-item.source {
+  border-left-color: #10b981;
+}
+
+.column-lineage-item.target {
+  border-left-color: #f59e0b;
+}
+
+.source-object,
+.target-object {
+  color: #64748b;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 11px;
+}
+
+.source-column,
+.target-column {
+  color: #1e293b;
+  font-weight: 600;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 11px;
+}
+
+.transformation {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: #f1f5f9;
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: 'Monaco', 'Menlo', monospace;
+  color: #475569;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.transform-type {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-left: auto;
+}
+
+.transform-type.aggregate {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.transform-type.expression {
+  background: #f3e8ff;
+  color: #9333ea;
+}
+
+.transform-type.case {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.transform-type.cast {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.transform-type.function {
+  background: #fce7f3;
+  color: #db2777;
+}
+
+.transform-type.unknown {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+/* Dark theme column lineage */
+.dark-theme .column-lineage-info {
+  background: rgba(30, 41, 59, 0.5);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.dark-theme .column-lineage-header {
+  border-bottom-color: rgba(148, 163, 184, 0.2);
+}
+
+.dark-theme .column-lineage-name {
+  color: #f1f5f9;
+}
+
+.dark-theme .column-lineage-item {
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.dark-theme .source-object,
+.dark-theme .target-object {
+  color: #94a3b8;
+}
+
+.dark-theme .source-column,
+.dark-theme .target-column {
+  color: #f1f5f9;
+}
+
+.dark-theme .transformation {
+  background: rgba(15, 23, 42, 0.8);
+  color: #cbd5e1;
+}

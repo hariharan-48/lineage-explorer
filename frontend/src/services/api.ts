@@ -3,6 +3,8 @@ import type {
   LineageResponse,
   SearchResult,
   Statistics,
+  ColumnLineageResponse,
+  ObjectColumnLineageResponse,
 } from '../types/lineage';
 
 // Use relative URL in production (Docker), full URL in development
@@ -132,6 +134,31 @@ class ApiClient {
 
   async getStatistics(): Promise<Statistics> {
     return this.fetch<Statistics>('/statistics');
+  }
+
+  // Column lineage
+  async getObjectColumnLineage(objectId: string): Promise<ObjectColumnLineageResponse> {
+    return this.fetch<ObjectColumnLineageResponse>(
+      `/lineage/${encodeURIComponent(objectId)}/columns`
+    );
+  }
+
+  async getColumnLineage(
+    objectId: string,
+    columnName: string,
+    options?: {
+      direction?: 'upstream' | 'downstream' | 'both';
+      depth?: number;
+    }
+  ): Promise<ColumnLineageResponse> {
+    const searchParams = new URLSearchParams();
+    if (options?.direction) searchParams.set('direction', options.direction);
+    if (options?.depth !== undefined) searchParams.set('depth', options.depth.toString());
+
+    const query = searchParams.toString();
+    return this.fetch<ColumnLineageResponse>(
+      `/lineage/${encodeURIComponent(objectId)}/columns/${encodeURIComponent(columnName)}${query ? `?${query}` : ''}`
+    );
   }
 }
 
