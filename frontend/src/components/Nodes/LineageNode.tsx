@@ -267,8 +267,8 @@ export const LineageNode = memo(({ data, id, selected }: NodeProps) => {
                   return columnsToShow.slice(0, 20).map((colName) => {
                     const colLineage = columnData?.column_lineage?.[colName];
                     const isSelected = selectedColumn?.objectId === id && selectedColumn?.column === colName;
-                    const hasSource = colLineage?.source_columns?.length > 0;
-                    const hasTarget = colLineage?.target_columns?.length > 0;
+                    const hasSource = (colLineage?.source_columns?.length ?? 0) > 0;
+                    const hasTarget = (colLineage?.target_columns?.length ?? 0) > 0;
 
                     return (
                       <div
